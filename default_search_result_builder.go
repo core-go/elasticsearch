@@ -35,7 +35,7 @@ func (b *DefaultSearchResultBuilder) BuildSearchResult(ctx context.Context, db *
 			}
 		}
 	}
-	return b.Build(ctx, db, modelType, indexName, query, sort, searchModel.PageIndex, searchModel.PageSize, searchModel.InitPageSize)
+	return b.Build(ctx, db, modelType, indexName, query, sort, searchModel.Page, searchModel.Limit, searchModel.FirstLimit)
 }
 
 func (b *DefaultSearchResultBuilder) Build(ctx context.Context, db *elasticsearch.Client, modelType reflect.Type, indexName string, query map[string]interface{}, sort []string, pageIndex int64, pageSize int64, initPageSize int64) (*search.SearchResult, error) {
@@ -84,9 +84,9 @@ func (b *DefaultSearchResultBuilder) Build(ctx context.Context, db *elasticsearc
 	}
 
 	searchResult := search.SearchResult{}
-	searchResult.ItemTotal = count
+	searchResult.Total = count
 
-	searchResult.LastPage = false
+	searchResult.Last = false
 	lengthModels := int64(reflect.Indirect(reflect.ValueOf(results)).Len())
 	var receivedItems int64
 	if initPageSize > 0 {
@@ -98,7 +98,7 @@ func (b *DefaultSearchResultBuilder) Build(ctx context.Context, db *elasticsearc
 	} else {
 		receivedItems = pageSize*(pageIndex-1) + lengthModels
 	}
-	searchResult.LastPage = receivedItems >= count
+	searchResult.Last = receivedItems >= count
 
 	searchResult.Results = results
 
