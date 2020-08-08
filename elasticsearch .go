@@ -290,7 +290,7 @@ func InsertOne(ctx context.Context, es *elasticsearch.Client, indexName string, 
 	}
 	defer res.Body.Close()
 	if res.IsError() {
-		return -1, errors.New("document ID already exists in the index")
+		return 0, nil
 	} else {
 		var r map[string]interface{}
 		if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
