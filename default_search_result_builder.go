@@ -4,41 +4,31 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/common-go/search"
 	"github.com/elastic/go-elasticsearch"
 	"github.com/elastic/go-elasticsearch/esapi"
 	"github.com/elastic/go-elasticsearch/esutil"
 	"reflect"
+	"strings"
 )
 
 type DefaultSearchResultBuilder struct {
-	QueryBuilder QueryBuilder
-	SortBuilder  SortBuilder
+	QueryBuilder      QueryBuilder
+	BuildSort         func(s string, modelType reflect.Type) []string
+	ExtractSearchInfo func(m interface{}) (string, int64, int64, int64, error)
 }
 
-func (b *DefaultSearchResultBuilder) BuildSearchResult(ctx context.Context, db *elasticsearch.Client, sm interface{}, modelType reflect.Type, indexName string) (*search.SearchResult, error) {
+func (b *DefaultSearchResultBuilder) BuildSearchResult(ctx context.Context, db *elasticsearch.Client, sm interface{}, modelType reflect.Type, indexName string) (interface{}, int64, error) {
 	query := b.QueryBuilder.BuildQuery(sm, modelType)
-
-	var sort []string
-	var searchModel *search.SearchModel
-
-	if sModel, ok := sm.(*search.SearchModel); ok {
-		searchModel = sModel
-		sort = b.SortBuilder.BuildSort(*sModel, modelType)
-	} else {
-		value := reflect.Indirect(reflect.ValueOf(sm))
-		numField := value.NumField()
-		for i := 0; i < numField; i++ {
-			if sModel1, ok := value.Field(i).Interface().(*search.SearchModel); ok {
-				searchModel = sModel1
-				sort = b.SortBuilder.BuildSort(*sModel1, modelType)
-			}
-		}
+	s, pageIndex, pageSize, firstPageSize, err := b.ExtractSearchInfo(sm)
+	if err != nil {
+		return nil, 0, err
 	}
-	return b.Build(ctx, db, modelType, indexName, query, sort, searchModel.Page, searchModel.Limit, searchModel.FirstLimit)
+	var sort []string
+	sort = b.BuildSort(s, modelType)
+	return b.Build(ctx, db, modelType, indexName, query, sort, pageIndex, pageSize, firstPageSize)
 }
 
-func (b *DefaultSearchResultBuilder) Build(ctx context.Context, db *elasticsearch.Client, modelType reflect.Type, indexName string, query map[string]interface{}, sort []string, pageIndex int64, pageSize int64, initPageSize int64) (*search.SearchResult, error) {
+func (b *DefaultSearchResultBuilder) Build(ctx context.Context, db *elasticsearch.Client, modelType reflect.Type, indexName string, query map[string]interface{}, sort []string, pageIndex int64, pageSize int64, initPageSize int64) (interface{}, int64, error) {
 	from := 0
 	size := 0
 	if initPageSize > 0 {
@@ -62,45 +52,50 @@ func (b *DefaultSearchResultBuilder) Build(ctx context.Context, db *elasticsearc
 
 	res, err := req.Do(ctx, db)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer res.Body.Close()
 	modelsType := reflect.Zero(reflect.SliceOf(modelType)).Type()
 	results := reflect.New(modelsType).Interface()
 	var count int64
 	if res.IsError() {
-		return nil, errors.New("response error")
+		return nil, 0, errors.New("response error")
 	} else {
 		var r map[string]interface{}
 		if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
-			return nil, err
+			return nil, 0, err
 		} else {
 			hits := r["hits"].(map[string]interface{})["hits"].([]interface{})
 			count = int64(r["hits"].(map[string]interface{})["total"].(map[string]interface{})["value"].(float64))
 			if err := json.NewDecoder(esutil.NewJSONReader(hits)).Decode(&results); err != nil {
-				return nil, err
+				return nil, count, err
 			}
 		}
 	}
+	return results, count, nil
+}
 
-	searchResult := search.SearchResult{}
-	searchResult.Total = count
-
-	searchResult.Last = false
-	lengthModels := int64(reflect.Indirect(reflect.ValueOf(results)).Len())
-	var receivedItems int64
-	if initPageSize > 0 {
-		if pageIndex == 1 {
-			receivedItems = initPageSize
-		} else if pageIndex > 1 {
-			receivedItems = pageSize*(pageIndex-2) + initPageSize + lengthModels
-		}
-	} else {
-		receivedItems = pageSize*(pageIndex-1) + lengthModels
+func BuildSort(s string, modelType reflect.Type) []string {
+	var sort []string
+	if len(s) == 0 {
+		return sort
 	}
-	searchResult.Last = receivedItems >= count
-
-	searchResult.Results = results
-
-	return &searchResult, nil
+	sorts := strings.Split(s, ",")
+	for i := 0; i < len(sorts); i++ {
+		sortField := strings.TrimSpace(sorts[i])
+		fieldName := sortField
+		c := sortField[0:1]
+		if c == "-" || c == "+" {
+			fieldName = sortField[1:]
+		}
+		sort = append(sort, fieldName)
+	}
+	return sort
+}
+func GetSortType(sortType string) int {
+	if sortType == "-" {
+		return -1
+	} else  {
+		return 1
+	}
 }

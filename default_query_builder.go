@@ -1,6 +1,7 @@
 package elasticsearch
 
 import (
+	"errors"
 	"github.com/common-go/search"
 	"reflect"
 	"strings"
@@ -41,6 +42,17 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}, resultModelType reflect
 			rangeDate.EndDate = &eDate
 			actionDateQuery["$lte"] = rangeDate.EndDate
 			query[columnName] = actionDateQuery
+		} else if rangeDate, ok := fieldValue.(*search.DateRange); ok && rangeDate != nil {
+			_, columnName := FindFieldByName(resultModelType, value.Type().Field(i).Name)
+
+			actionDateQuery := map[string]interface{}{}
+
+			actionDateQuery["$gte"] = rangeDate.StartDate
+			query[columnName] = actionDateQuery
+			var eDate = rangeDate.EndDate.Add(time.Hour * 24)
+			rangeDate.EndDate = &eDate
+			actionDateQuery["$lte"] = rangeDate.EndDate
+			query[columnName] = actionDateQuery
 		} else if rangeTime, ok := fieldValue.(search.TimeRange); ok {
 			_, columnName := FindFieldByName(resultModelType, value.Type().Field(i).Name)
 
@@ -50,7 +62,34 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}, resultModelType reflect
 			query[columnName] = actionDateQuery
 			actionDateQuery["$lt"] = rangeTime.EndTime
 			query[columnName] = actionDateQuery
+		} else if rangeTime, ok := fieldValue.(*search.TimeRange); ok && rangeTime != nil {
+			_, columnName := FindFieldByName(resultModelType, value.Type().Field(i).Name)
+
+			actionDateQuery := map[string]interface{}{}
+
+			actionDateQuery["$gte"] = rangeTime.StartTime
+			query[columnName] = actionDateQuery
+			actionDateQuery["$lt"] = rangeTime.EndTime
+			query[columnName] = actionDateQuery
 		} else if numberRange, ok := fieldValue.(search.NumberRange); ok {
+			_, columnName := FindFieldByName(resultModelType, value.Type().Field(i).Name)
+			amountQuery := map[string]interface{}{}
+
+			if numberRange.Min != nil {
+				amountQuery["$gte"] = *numberRange.Min
+			} else if numberRange.Lower != nil {
+				amountQuery["$gt"] = *numberRange.Lower
+			}
+			if numberRange.Max != nil {
+				amountQuery["$lte"] = *numberRange.Max
+			} else if numberRange.Upper != nil {
+				amountQuery["$lt"] = *numberRange.Upper
+			}
+
+			if len(amountQuery) > 0 {
+				query[columnName] = amountQuery
+			}
+		} else if numberRange, ok := fieldValue.(*search.NumberRange); ok && numberRange != nil {
 			_, columnName := FindFieldByName(resultModelType, value.Type().Field(i).Name)
 			amountQuery := map[string]interface{}{}
 
@@ -85,4 +124,19 @@ func (b *DefaultQueryBuilder) BuildQuery(sm interface{}, resultModelType reflect
 		}
 	}
 	return query
+}
+
+func ExtractSearchInfo(m interface{}) (string, int64, int64, int64, error) {
+	if sModel, ok := m.(*search.SearchModel); ok {
+		return sModel.Sort, sModel.PageIndex, sModel.PageSize, sModel.FirstPageSize, nil
+	} else {
+		value := reflect.Indirect(reflect.ValueOf(m))
+		numField := value.NumField()
+		for i := 0; i < numField; i++ {
+			if sModel1, ok := value.Field(i).Interface().(*search.SearchModel); ok {
+				return sModel1.Sort, sModel1.PageIndex, sModel1.PageSize, sModel1.FirstPageSize, nil
+			}
+		}
+		return "", 0, 0, 0, errors.New("cannot extract sort, pageIndex, pageSize, firstPageSize from model")
+	}
 }

@@ -2,7 +2,6 @@
 - Elasticsearch Client Utilities
 
 ## Installation
-
 Please make sure to initialize a Go module before installing common-go/elasticsearch:
 
 ```shell
@@ -19,5 +18,5 @@ You can optimize the import by version:
 - v0.0.1: Utilities to support query, find one by Id
 - v0.0.4: Utilities to support insert, update, patch, upsert, delete
 - v0.0.7: Utilities to support batch update
-- v1.0.0: ViewService and GenericService
-- v1.0.4: SearchService
+- v0.1.0: ViewService and GenericService
+- v0.1.1: SearchService

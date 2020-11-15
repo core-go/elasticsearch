@@ -2,7 +2,6 @@ package elasticsearch
 
 import (
 	"context"
-	"github.com/common-go/search"
 	"github.com/elastic/go-elasticsearch"
 	"reflect"
 )
@@ -18,6 +17,6 @@ func NewSearchService(db *elasticsearch.Client, indexName string, modelType refl
 	return &SearchService{db, indexName, modelType, searchBuilder}
 }
 
-func (s *SearchService) Search(ctx context.Context, m interface{}) (*search.SearchResult, error) {
+func (s *SearchService) Search(ctx context.Context, m interface{}) (interface{}, int64, error) {
 	return s.searchBuilder.BuildSearchResult(ctx, s.client, m, s.modelType, s.indexName)
 }
