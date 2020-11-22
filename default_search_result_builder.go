@@ -25,10 +25,10 @@ func (b *DefaultSearchResultBuilder) BuildSearchResult(ctx context.Context, db *
 	}
 	var sort []string
 	sort = b.BuildSort(s, modelType)
-	return b.Build(ctx, db, modelType, indexName, query, sort, pageIndex, pageSize, firstPageSize)
+	return BuildSearchResult(ctx, db, modelType, indexName, query, sort, pageIndex, pageSize, firstPageSize)
 }
 
-func (b *DefaultSearchResultBuilder) Build(ctx context.Context, db *elasticsearch.Client, modelType reflect.Type, indexName string, query map[string]interface{}, sort []string, pageIndex int64, pageSize int64, initPageSize int64) (interface{}, int64, error) {
+func BuildSearchResult(ctx context.Context, db *elasticsearch.Client, modelType reflect.Type, indexName string, query map[string]interface{}, sort []string, pageIndex int64, pageSize int64, initPageSize int64) (interface{}, int64, error) {
 	from := 0
 	size := 0
 	if initPageSize > 0 {
