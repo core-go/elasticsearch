@@ -6,16 +6,16 @@ import (
 	"reflect"
 )
 
-type ElasticsearchInserter struct {
+type ElasticSearchInserter struct {
 	client    *elasticsearch.Client
 	indexName string
 }
 
-func NewElasticsearchInserter(client *elasticsearch.Client, indexName string) *ElasticsearchInserter {
-	return &ElasticsearchInserter{client, indexName}
+func NewElasticSearchInserter(client *elasticsearch.Client, indexName string) *ElasticSearchInserter {
+	return &ElasticSearchInserter{client, indexName}
 }
 
-func (e *ElasticsearchInserter) Write(ctx context.Context, model interface{}) error {
+func (e *ElasticSearchInserter) Write(ctx context.Context, model interface{}) error {
 	modelType := reflect.TypeOf(model)
 	_, err := InsertOne(ctx, e.client, e.indexName, modelType, model)
 	return err
