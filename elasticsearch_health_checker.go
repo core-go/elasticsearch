@@ -16,8 +16,14 @@ func NewHealthCheckerWithTimeout(client *elasticsearch.Client, name string, time
 	return &ElasticsearchHealthChecker{client, name, timeout}
 }
 
-func NewHealthChecker(client *elasticsearch.Client) *ElasticsearchHealthChecker {
-	return NewHealthCheckerWithTimeout(client, "elasticsearch", 4 * time.Second)
+func NewHealthChecker(client *elasticsearch.Client, options ...string) *ElasticsearchHealthChecker {
+	var name string
+	if len(options) >= 1 && len(options[0]) > 0 {
+		name = options[0]
+	} else {
+		name = "elasticsearch"
+	}
+	return NewHealthCheckerWithTimeout(client, name, 4 * time.Second)
 }
 
 func (e *ElasticsearchHealthChecker) Name() string {
