@@ -12,7 +12,7 @@ type ElasticsearchHealthChecker struct {
 	timeout time.Duration
 }
 
-func NewHealthCheckerWithTimeout(client *elasticsearch.Client, name string, timeout time.Duration) *ElasticsearchHealthChecker {
+func NewElasticSearchHealthChecker(client *elasticsearch.Client, name string, timeout time.Duration) *ElasticsearchHealthChecker {
 	return &ElasticsearchHealthChecker{client, name, timeout}
 }
 
@@ -23,7 +23,7 @@ func NewHealthChecker(client *elasticsearch.Client, options ...string) *Elastics
 	} else {
 		name = "elasticsearch"
 	}
-	return NewHealthCheckerWithTimeout(client, name, 4 * time.Second)
+	return NewElasticSearchHealthChecker(client, name, 4 * time.Second)
 }
 
 func (e *ElasticsearchHealthChecker) Name() string {

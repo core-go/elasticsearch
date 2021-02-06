@@ -18,12 +18,24 @@ type PasscodeService struct {
 	expiredAtName string
 }
 
-func NewPasscodeService(db *elasticsearch.Client, tableName, keyName, passcodeName, expiredAtName string) *PasscodeService {
+func NewPasscodeService(db *elasticsearch.Client, tableName string, options ...string) *PasscodeService {
+	var keyName, passcodeName, expiredAtName string
+	if len(options) >= 1 && len(options[0]) > 0 {
+		keyName = options[0]
+	} else {
+		keyName = "_id"
+	}
+	if len(options) >= 2 && len(options[1]) > 0 {
+		passcodeName = options[1]
+	} else {
+		passcodeName = "passcode"
+	}
+	if len(options) >= 3 && len(options[2]) > 0 {
+		expiredAtName = options[2]
+	} else {
+		expiredAtName = "expiredAt"
+	}
 	return &PasscodeService{db, tableName, keyName, passcodeName, expiredAtName}
-}
-
-func NewDefaultPasscodeService(db *elasticsearch.Client, tableName string) *PasscodeService {
-	return NewPasscodeService(db, tableName, "_id", "passcode", "expiredAt")
 }
 
 func (s *PasscodeService) Save(ctx context.Context, id string, passcode string, expiredAt time.Time) (int64, error) {
