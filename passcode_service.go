@@ -21,19 +21,19 @@ type PasscodeService struct {
 func NewPasscodeService(db *elasticsearch.Client, tableName string, options ...string) *PasscodeService {
 	var keyName, passcodeName, expiredAtName string
 	if len(options) >= 1 && len(options[0]) > 0 {
-		keyName = options[0]
-	} else {
-		keyName = "_id"
-	}
-	if len(options) >= 2 && len(options[1]) > 0 {
-		passcodeName = options[1]
-	} else {
-		passcodeName = "passcode"
-	}
-	if len(options) >= 3 && len(options[2]) > 0 {
-		expiredAtName = options[2]
+		expiredAtName = options[0]
 	} else {
 		expiredAtName = "expiredAt"
+	}
+	if len(options) >= 2 && len(options[1]) > 0 {
+		keyName = options[1]
+	} else {
+		keyName = "id"
+	}
+	if len(options) >= 3 && len(options[2]) > 0 {
+		passcodeName = options[2]
+	} else {
+		passcodeName = "passcode"
 	}
 	return &PasscodeService{db, tableName, keyName, passcodeName, expiredAtName}
 }

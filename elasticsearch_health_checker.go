@@ -12,7 +12,13 @@ type ElasticsearchHealthChecker struct {
 	timeout time.Duration
 }
 
-func NewElasticSearchHealthChecker(client *elasticsearch.Client, name string, timeout time.Duration) *ElasticsearchHealthChecker {
+func NewElasticSearchHealthChecker(client *elasticsearch.Client, name string, timeouts ...time.Duration) *ElasticsearchHealthChecker {
+	var timeout time.Duration
+	if len(timeouts) >= 1 {
+		timeout = timeouts[0]
+	} else {
+		timeout = 4 * time.Second
+	}
 	return &ElasticsearchHealthChecker{client, name, timeout}
 }
 

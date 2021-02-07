@@ -14,8 +14,12 @@ type GenericService struct {
 	versionIndex int
 }
 
-func NewGenericService(db *elasticsearch.Client, indexName string, modelType reflect.Type, versionField string) *GenericService {
+func NewGenericService(db *elasticsearch.Client, indexName string, modelType reflect.Type, options ...string) *GenericService {
 	defaultViewService := NewViewService(db, indexName, modelType)
+	var versionField string
+	if len(options) >= 1 && len(options[0]) > 0 {
+		versionField = options[0]
+	}
 	if len(versionField) > 0 {
 		index, _ := FindFieldByName(modelType, versionField)
 		if index >= 0 {
