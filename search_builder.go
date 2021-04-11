@@ -4,28 +4,40 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"reflect"
+	"strings"
+
 	"github.com/elastic/go-elasticsearch"
 	"github.com/elastic/go-elasticsearch/esapi"
 	"github.com/elastic/go-elasticsearch/esutil"
-	"reflect"
-	"strings"
 )
 
-type DefaultSearchResultBuilder struct {
-	BuildQuery        func(searchModel interface{}, resultModelType reflect.Type) map[string]interface{}
-	BuildSort         func(s string, modelType reflect.Type) []string
+type SearchBuilder struct {
+	Client            *elasticsearch.Client
+	IndexName         string
+	ModelType         reflect.Type
+	BuildQuery        func(searchModel interface{}) map[string]interface{}
 	ExtractSearchInfo func(m interface{}) (string, int64, int64, int64, error)
 }
 
-func (b *DefaultSearchResultBuilder) Search(ctx context.Context, db *elasticsearch.Client, sm interface{}, modelType reflect.Type, indexName string) (interface{}, int64, error) {
-	query := b.BuildQuery(sm, modelType)
+func NewSearchBuilder(client *elasticsearch.Client, indexName string, modelType reflect.Type, buildQuery func(searchModel interface{}) map[string]interface{}, options...func(m interface{}) (string, int64, int64, int64, error)) *SearchBuilder {
+	var extract func(m interface{}) (string, int64, int64, int64, error)
+	if len(options) > 0 && options[0] != nil {
+		extract = options[0]
+	} else {
+		extract = ExtractSearchInfo
+	}
+	return &SearchBuilder{Client: client, IndexName: indexName, ModelType: modelType, BuildQuery: buildQuery, ExtractSearchInfo: extract}
+}
+func (b *SearchBuilder) Search(ctx context.Context, sm interface{}) (interface{}, int64, error) {
+	query := b.BuildQuery(sm)
 	s, pageIndex, pageSize, firstPageSize, err := b.ExtractSearchInfo(sm)
 	if err != nil {
 		return nil, 0, err
 	}
 	var sort []string
-	sort = b.BuildSort(s, modelType)
-	return BuildSearchResult(ctx, db, modelType, indexName, query, sort, pageIndex, pageSize, firstPageSize)
+	sort = BuildSort(s)
+	return BuildSearchResult(ctx, b.Client, b.ModelType, b.IndexName, query, sort, pageIndex, pageSize, firstPageSize)
 }
 
 func BuildSearchResult(ctx context.Context, db *elasticsearch.Client, modelType reflect.Type, indexName string, query map[string]interface{}, sort []string, pageIndex int64, pageSize int64, initPageSize int64) (interface{}, int64, error) {
@@ -75,7 +87,7 @@ func BuildSearchResult(ctx context.Context, db *elasticsearch.Client, modelType 
 	return results, count, nil
 }
 
-func BuildSort(s string, modelType reflect.Type) []string {
+func BuildSort(s string) []string {
 	var sort []string
 	if len(s) == 0 {
 		return sort
@@ -91,11 +103,4 @@ func BuildSort(s string, modelType reflect.Type) []string {
 		sort = append(sort, fieldName)
 	}
 	return sort
-}
-func GetSortType(sortType string) int {
-	if sortType == "-" {
-		return -1
-	} else {
-		return 1
-	}
 }

@@ -2,16 +2,37 @@ package elasticsearch
 
 import (
 	"errors"
-	"github.com/common-go/search"
+	"github.com/elastic/go-elasticsearch"
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/common-go/search"
 )
 
-type DefaultQueryBuilder struct {
+func NewDefaultSearchBuilder(client *elasticsearch.Client, indexName string, modelType reflect.Type, options...func(m interface{}) (string, int64, int64, int64, error)) *SearchBuilder {
+	var extract func(m interface{}) (string, int64, int64, int64, error)
+	if len(options) > 0 && options[0] != nil {
+		extract = options[0]
+	} else {
+		extract = ExtractSearchInfo
+	}
+	queryBuilder := NewQueryBuilder(modelType)
+	return &SearchBuilder{Client: client, IndexName: indexName, ModelType: modelType, BuildQuery: queryBuilder.BuildQuery, ExtractSearchInfo: extract}
 }
 
-func (b *DefaultQueryBuilder) BuildQuery(sm interface{}, resultModelType reflect.Type) map[string]interface{} {
+type QueryBuilder struct {
+	ModelType reflect.Type
+}
+
+func NewQueryBuilder(resultModelType reflect.Type) *QueryBuilder {
+	return &QueryBuilder{ModelType: resultModelType}
+}
+func (b *QueryBuilder) BuildQuery(sm interface{}) map[string]interface{} {
+	return BuildQuery(sm, b.ModelType)
+}
+
+func BuildQuery(sm interface{}, resultModelType reflect.Type) map[string]interface{} {
 	query := map[string]interface{}{}
 	if _, ok := sm.(*search.SearchModel); ok {
 		return query

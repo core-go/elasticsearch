@@ -9,7 +9,7 @@ import (
 )
 
 type GenericService struct {
-	*ViewService
+	*Loader
 	maps         map[string]string
 	versionField string
 	versionIndex int
@@ -24,10 +24,10 @@ func NewGenericService(db *elasticsearch.Client, indexName string, modelType ref
 	if len(versionField) > 0 {
 		index, _ := FindFieldByName(modelType, versionField)
 		if index >= 0 {
-			return &GenericService{ViewService: defaultViewService, maps: MakeMapJson(modelType), versionField: versionField, versionIndex: index}
+			return &GenericService{Loader: defaultViewService, maps: MakeMapJson(modelType), versionField: versionField, versionIndex: index}
 		}
 	}
-	return &GenericService{ViewService: defaultViewService, maps: MakeMapJson(modelType), versionField: "", versionIndex: -1}
+	return &GenericService{Loader: defaultViewService, maps: MakeMapJson(modelType), versionField: "", versionIndex: -1}
 }
 
 func (m *GenericService) Insert(ctx context.Context, model interface{}) (int64, error) {

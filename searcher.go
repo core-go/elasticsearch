@@ -1,22 +1,15 @@
 package elasticsearch
 
-import (
-	"context"
-	"github.com/elastic/go-elasticsearch"
-	"reflect"
-)
+import "context"
 
-type SearchService struct {
-	client        *elasticsearch.Client
-	indexName     string
-	modelType     reflect.Type
-	searchBuilder SearchResultBuilder
+type Searcher struct {
+	search    func(ctx context.Context, searchModel interface{}) (interface{}, int64, error)
 }
 
-func NewSearchService(db *elasticsearch.Client, indexName string, modelType reflect.Type, searchBuilder SearchResultBuilder) *SearchService {
-	return &SearchService{db, indexName, modelType, searchBuilder}
+func NewSearchService(search func(context.Context, interface{}) (interface{}, int64, error)) *Searcher {
+	return &Searcher{search: search}
 }
 
-func (s *SearchService) Search(ctx context.Context, m interface{}) (interface{}, int64, error) {
-	return s.searchBuilder.Search(ctx, s.client, m, s.modelType, s.indexName)
+func (s *Searcher) Search(ctx context.Context, m interface{}) (interface{}, int64, error) {
+	return s.search(ctx, m)
 }

@@ -5,15 +5,16 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
-	"github.com/elastic/go-elasticsearch"
-	"github.com/elastic/go-elasticsearch/esapi"
-	"github.com/elastic/go-elasticsearch/esutil"
 	"log"
 	"net"
 	"net/http"
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/elastic/go-elasticsearch"
+	"github.com/elastic/go-elasticsearch/esapi"
+	"github.com/elastic/go-elasticsearch/esutil"
 )
 
 type Config struct {
@@ -113,7 +114,7 @@ func BuildQueryWithoutIdFromObject(object interface{}) map[string]interface{} {
 	return result
 }
 
-func BuildQuery(indexName string, query map[string]interface{}) map[string]interface{} {
+func BuildQueryMap(indexName string, query map[string]interface{}) map[string]interface{} {
 	return map[string]interface{}{}
 }
 
@@ -561,4 +562,19 @@ func DeleteOne(ctx context.Context, es *elasticsearch.Client, indexName string, 
 			return successful, nil
 		}
 	}
+}
+
+func GetFieldByJson(modelType reflect.Type, jsonName string) (int, string, string) {
+	numField := modelType.NumField()
+	for i := 0; i < numField; i++ {
+		field := modelType.Field(i)
+		tag1, ok1 := field.Tag.Lookup("json")
+		if ok1 && strings.Split(tag1, ",")[0] == jsonName {
+			if tag2, ok2 := field.Tag.Lookup("bson"); ok2 {
+				return i, field.Name, strings.Split(tag2, ",")[0]
+			}
+			return i, field.Name, ""
+		}
+	}
+	return -1, jsonName, jsonName
 }
