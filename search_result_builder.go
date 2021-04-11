@@ -7,5 +7,5 @@ import (
 )
 
 type SearchResultBuilder interface {
-	BuildSearchResult(ctx context.Context, db *elasticsearch.Client, searchModel interface{}, modelType reflect.Type, indexName string) (interface{}, int64, error)
+	Search(ctx context.Context, db *elasticsearch.Client, searchModel interface{}, modelType reflect.Type, indexName string) (interface{}, int64, error)
 }

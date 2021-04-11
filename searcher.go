@@ -18,5 +18,5 @@ func NewSearchService(db *elasticsearch.Client, indexName string, modelType refl
 }
 
 func (s *SearchService) Search(ctx context.Context, m interface{}) (interface{}, int64, error) {
-	return s.searchBuilder.BuildSearchResult(ctx, s.client, m, s.modelType, s.indexName)
+	return s.searchBuilder.Search(ctx, s.client, m, s.modelType, s.indexName)
 }

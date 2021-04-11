@@ -3,8 +3,9 @@ package elasticsearch
 import (
 	"context"
 	"fmt"
-	"github.com/elastic/go-elasticsearch"
 	"reflect"
+
+	"github.com/elastic/go-elasticsearch"
 )
 
 type GenericService struct {

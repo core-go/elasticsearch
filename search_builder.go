@@ -12,13 +12,13 @@ import (
 )
 
 type DefaultSearchResultBuilder struct {
-	QueryBuilder      QueryBuilder
+	BuildQuery        func(searchModel interface{}, resultModelType reflect.Type) map[string]interface{}
 	BuildSort         func(s string, modelType reflect.Type) []string
 	ExtractSearchInfo func(m interface{}) (string, int64, int64, int64, error)
 }
 
-func (b *DefaultSearchResultBuilder) BuildSearchResult(ctx context.Context, db *elasticsearch.Client, sm interface{}, modelType reflect.Type, indexName string) (interface{}, int64, error) {
-	query := b.QueryBuilder.BuildQuery(sm, modelType)
+func (b *DefaultSearchResultBuilder) Search(ctx context.Context, db *elasticsearch.Client, sm interface{}, modelType reflect.Type, indexName string) (interface{}, int64, error) {
+	query := b.BuildQuery(sm, modelType)
 	s, pageIndex, pageSize, firstPageSize, err := b.ExtractSearchInfo(sm)
 	if err != nil {
 		return nil, 0, err
@@ -95,7 +95,7 @@ func BuildSort(s string, modelType reflect.Type) []string {
 func GetSortType(sortType string) int {
 	if sortType == "-" {
 		return -1
-	} else  {
+	} else {
 		return 1
 	}
 }
