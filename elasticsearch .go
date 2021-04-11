@@ -37,9 +37,8 @@ func Connect(config Config) (*elasticsearch.Client, error) {
 	return elasticsearch.NewClient(c)
 }
 
-func FindIdField(modelType reflect.Type) (int, string) {
-	i, s, _ := FindBsonField(modelType, "_id")
-	return i, s
+func FindIdField(modelType reflect.Type) (int, string, string) {
+	return FindBsonField(modelType, "_id")
 }
 func FindBsonField(modelType reflect.Type, bsonName string) (int, string, string) {
 	numField := modelType.NumField()
@@ -121,7 +120,7 @@ func MakeMapJson(modelType reflect.Type) map[string]string {
 //For Insert
 func BuildQueryWithoutIdFromObject(object interface{}) map[string]interface{} {
 	valueOf := reflect.Indirect(reflect.ValueOf(object))
-	idIndex, _ := FindIdField(valueOf.Type())
+	idIndex, _, _ := FindIdField(valueOf.Type())
 	result := map[string]interface{}{}
 	for i := 0; i < valueOf.NumField(); i++ {
 		if i != idIndex {
@@ -306,7 +305,7 @@ func FindListIdField(modelType reflect.Type, model interface{}) (listIdS []inter
 	if value.Kind() == reflect.Slice {
 		for i := 0; i < value.Len(); i++ {
 			sliceValue := value.Index(i).Interface()
-			if idIndex, _ := FindIdField(modelType); idIndex >= 0 {
+			if idIndex, _, _ := FindIdField(modelType); idIndex >= 0 {
 				modelValue := reflect.Indirect(reflect.ValueOf(sliceValue))
 				idValue := modelValue.Field(idIndex).String()
 				listIdS = append(listIdS, idValue)
@@ -318,7 +317,7 @@ func FindListIdField(modelType reflect.Type, model interface{}) (listIdS []inter
 
 func InsertOne(ctx context.Context, es *elasticsearch.Client, indexName string, modelType reflect.Type, model interface{}) (int64, error) {
 	var req esapi.CreateRequest
-	if idIndex, _ := FindIdField(modelType); idIndex >= 0 {
+	if idIndex, _, _ := FindIdField(modelType); idIndex >= 0 {
 		modelValue := reflect.Indirect(reflect.ValueOf(model))
 		idValue := modelValue.Field(idIndex).String()
 		body := BuildQueryWithoutIdFromObject(model)
@@ -368,7 +367,7 @@ func InsertMany(ctx context.Context, es *elasticsearch.Client, indexName string,
 		var successIds, failIds []interface{}
 		for i := 0; i < value.Len(); i++ {
 			sliceValue := value.Index(i).Interface()
-			if idIndex, _ := FindIdField(modelType); idIndex >= 0 {
+			if idIndex, _, _ := FindIdField(modelType); idIndex >= 0 {
 				modelValue := reflect.Indirect(reflect.ValueOf(sliceValue))
 				idValue := modelValue.Field(idIndex).String()
 				if idValue != "" {
@@ -423,7 +422,7 @@ func BuildIndicesResult(listIds, successIds, failIds []interface{}) (successIndi
 }
 
 func UpdateOne(ctx context.Context, es *elasticsearch.Client, indexName string, modelType reflect.Type, model interface{}) (int64, error) {
-	idIndex, _ := FindIdField(modelType)
+	idIndex, _, _ := FindIdField(modelType)
 	if idIndex < 0 {
 		return 0, errors.New("missing document ID in the object")
 	}
@@ -493,7 +492,7 @@ func UpsertMany(ctx context.Context, es *elasticsearch.Client, indexName string,
 		var successIds, failIds []interface{}
 		for i := 0; i < value.Len(); i++ {
 			sliceValue := value.Index(i).Interface()
-			if idIndex, _ := FindIdField(modelType); idIndex >= 0 {
+			if idIndex, _, _ := FindIdField(modelType); idIndex >= 0 {
 				modelValue := reflect.Indirect(reflect.ValueOf(sliceValue))
 				idValue := modelValue.Field(idIndex).String()
 				if idValue != "" {

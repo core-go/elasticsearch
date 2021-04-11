@@ -47,7 +47,7 @@ func (m *Writer) Delete(ctx context.Context, id interface{}) (int64, error) {
 }
 
 func (m *Writer) Save(ctx context.Context, model interface{}) (int64, error) {
-	idIndex, _ := FindIdField(m.modelType)
+	idIndex, _, _ := FindIdField(m.modelType)
 	if idIndex < 0 {
 		return 0, fmt.Errorf("missing document ID in the object")
 	}

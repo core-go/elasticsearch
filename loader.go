@@ -16,12 +16,12 @@ type Loader struct {
 	idIndex   int
 }
 
-func NewLoader(db *elasticsearch.Client, indexName string, modelType reflect.Type) *Loader {
-	idIndex, idName := FindIdField(modelType)
+func NewLoader(client *elasticsearch.Client, indexName string, modelType reflect.Type) *Loader {
+	idIndex, idName, _ := FindIdField(modelType)
 	if len(idName) == 0 {
 		log.Println(modelType.Name() + " repository can't use functions that need Id value (Ex Load, Exist, Save, Update) because don't have any fields of " + modelType.Name() + " struct define _id bson tag.")
 	}
-	return &Loader{db, indexName, modelType, idName, idIndex}
+	return &Loader{client, indexName, modelType, idName, idIndex}
 }
 
 func (m *Loader) Keys() []string {
