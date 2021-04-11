@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-type PasscodeService struct {
+type PasscodeRepository struct {
 	client        *elasticsearch.Client
 	indexName     string
 	idName        string
@@ -18,7 +18,7 @@ type PasscodeService struct {
 	expiredAtName string
 }
 
-func NewPasscodeService(db *elasticsearch.Client, tableName string, options ...string) *PasscodeService {
+func NewPasscodeRepository(db *elasticsearch.Client, tableName string, options ...string) *PasscodeRepository {
 	var keyName, passcodeName, expiredAtName string
 	if len(options) >= 1 && len(options[0]) > 0 {
 		expiredAtName = options[0]
@@ -35,20 +35,20 @@ func NewPasscodeService(db *elasticsearch.Client, tableName string, options ...s
 	} else {
 		passcodeName = "passcode"
 	}
-	return &PasscodeService{db, tableName, keyName, passcodeName, expiredAtName}
+	return &PasscodeRepository{db, tableName, keyName, passcodeName, expiredAtName}
 }
 
-func (s *PasscodeService) Save(ctx context.Context, id string, passcode string, expiredAt time.Time) (int64, error) {
+func (p *PasscodeRepository) Save(ctx context.Context, id string, passcode string, expiredAt time.Time) (int64, error) {
 	pass := make(map[string]interface{})
-	pass[s.passcodeName] = passcode
-	pass[s.expiredAtName] = expiredAt
+	pass[p.passcodeName] = passcode
+	pass[p.expiredAtName] = expiredAt
 	req := esapi.UpdateRequest{
-		Index:      s.indexName,
+		Index:      p.indexName,
 		DocumentID: id,
 		Body:       esutil.NewJSONReader(pass),
 		Refresh:    "true",
 	}
-	res, err := req.Do(ctx, s.client)
+	res, err := req.Do(ctx, p.client)
 	if err != nil {
 		return -1, err
 	}
@@ -67,15 +67,15 @@ func (s *PasscodeService) Save(ctx context.Context, id string, passcode string, 
 	return successful, nil
 }
 
-func (s *PasscodeService) Load(ctx context.Context, id string) (string, time.Time, error) {
+func (p *PasscodeRepository) Load(ctx context.Context, id string) (string, time.Time, error) {
 	result := make(map[string]interface{})
-	ok, err := FindOneByIdAndDecode(ctx, s.client, s.indexName, id, &result)
+	ok, err := FindOneByIdAndDecode(ctx, p.client, p.indexName, id, &result)
 	if err != nil || !ok {
 		return "", time.Now(), err
 	}
-	return result[s.passcodeName].(string), result[s.passcodeName].(time.Time), nil
+	return result[p.passcodeName].(string), result[p.passcodeName].(time.Time), nil
 }
 
-func (s *PasscodeService) Delete(ctx context.Context, id string) (int64, error) {
-	return DeleteOne(ctx, s.client, s.indexName, id)
+func (p *PasscodeRepository) Delete(ctx context.Context, id string) (int64, error) {
+	return DeleteOne(ctx, p.client, p.indexName, id)
 }
