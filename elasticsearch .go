@@ -38,9 +38,27 @@ func Connect(config Config) (*elasticsearch.Client, error) {
 }
 
 func FindIdField(modelType reflect.Type) (int, string) {
-	return FindFieldByJson(modelType, "_id")
+	i, s, _ := FindBsonField(modelType, "_id")
+	return i, s
 }
-
+func FindBsonField(modelType reflect.Type, bsonName string) (int, string, string) {
+	numField := modelType.NumField()
+	for i := 0; i < numField; i++ {
+		field := modelType.Field(i)
+		bsonTag := field.Tag.Get("bson")
+		tags := strings.Split(bsonTag, ",")
+		json := field.Name
+		if tag1, ok1 := field.Tag.Lookup("json"); ok1 {
+			json = strings.Split(tag1, ",")[0]
+		}
+		for _, tag := range tags {
+			if strings.TrimSpace(tag) == bsonName {
+				return i, field.Name, json
+			}
+		}
+	}
+	return -1, "", ""
+}
 func FindFieldByName(modelType reflect.Type, fieldName string) (index int, jsonTagName string) {
 	numField := modelType.NumField()
 	for index := 0; index < numField; index++ {

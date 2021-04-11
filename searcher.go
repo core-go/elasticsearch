@@ -3,10 +3,10 @@ package elasticsearch
 import "context"
 
 type Searcher struct {
-	search    func(ctx context.Context, searchModel interface{}) (interface{}, int64, error)
+	search func(ctx context.Context, searchModel interface{}) (interface{}, int64, error)
 }
 
-func NewSearchService(search func(context.Context, interface{}) (interface{}, int64, error)) *Searcher {
+func NewSearcher(search func(context.Context, interface{}) (interface{}, int64, error)) *Searcher {
 	return &Searcher{search: search}
 }
 

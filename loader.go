@@ -2,9 +2,10 @@ package elasticsearch
 
 import (
 	"context"
-	"github.com/elastic/go-elasticsearch"
 	"log"
 	"reflect"
+
+	"github.com/elastic/go-elasticsearch"
 )
 
 type Loader struct {
@@ -15,10 +16,10 @@ type Loader struct {
 	idIndex   int
 }
 
-func NewViewService(db *elasticsearch.Client, indexName string, modelType reflect.Type) *Loader {
+func NewLoader(db *elasticsearch.Client, indexName string, modelType reflect.Type) *Loader {
 	idIndex, idName := FindIdField(modelType)
 	if len(idName) == 0 {
-		log.Println(modelType.Name() + " repository can't use functions that need Id value (Ex GetById, ExistsById, Save, Update) because don't have any fields of " + modelType.Name() + " struct define _id bson tag.")
+		log.Println(modelType.Name() + " repository can't use functions that need Id value (Ex Load, Exist, Save, Update) because don't have any fields of " + modelType.Name() + " struct define _id bson tag.")
 	}
 	return &Loader{db, indexName, modelType, idName, idIndex}
 }
