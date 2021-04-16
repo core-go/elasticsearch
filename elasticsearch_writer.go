@@ -10,15 +10,28 @@ import (
 type ElasticSearchWriter struct {
 	client    *elasticsearch.Client
 	indexName string
+	Map       func(ctx context.Context, model interface{}) (interface{}, error)
 }
 
-func NewElasticSearchWriter(client *elasticsearch.Client, indexName string) *ElasticSearchWriter {
-	return &ElasticSearchWriter{client, indexName}
+func NewElasticSearchWriter(client *elasticsearch.Client, indexName string, options ...func(context.Context, interface{}) (interface{}, error)) *ElasticSearchWriter {
+	var mp func(context.Context, interface{}) (interface{}, error)
+	if len(options) > 0 {
+		mp = options[0]
+	}
+	return &ElasticSearchWriter{client: client, indexName: indexName, Map: mp}
 }
 
-func (e *ElasticSearchWriter) Write(ctx context.Context, model interface{}) error {
+func (w *ElasticSearchWriter) Write(ctx context.Context, model interface{}) error {
 	modelType := reflect.TypeOf(model)
 	_, _, id := FindValueByJson(modelType, "id")
-	_, err := UpsertOne(ctx, e.client, e.indexName, id, model)
-	return err
+	if w.Map != nil {
+		m2, er0 := w.Map(ctx, model)
+		if er0 != nil {
+			return er0
+		}
+		_, er1 := UpsertOne(ctx, w.client, w.indexName, id, m2)
+		return er1
+	}
+	_, er2 := UpsertOne(ctx, w.client, w.indexName, id, model)
+	return er2
 }

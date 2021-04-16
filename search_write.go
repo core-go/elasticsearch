@@ -7,30 +7,32 @@ import (
 	"github.com/elastic/go-elasticsearch"
 )
 
-func NewSearchWriter(client *elasticsearch.Client, indexName string, modelType reflect.Type, search func(context.Context, interface{}) (interface{}, int64, error), options ...string) (*Searcher, *Writer) {
+func NewDefaultSearchWriter(client *elasticsearch.Client, indexName string, modelType reflect.Type, search func(context.Context, interface{}, interface{}, int64, int64, ...int64) (int64, error), options ...string) (*Searcher, *Writer) {
+	return NewDefaultSearchWriterWithMapper(client, indexName, modelType, search, nil, options...)
+}
+func NewDefaultSearchWriterWithMapper(client *elasticsearch.Client, indexName string, modelType reflect.Type, search func(context.Context, interface{}, interface{}, int64, int64, ...int64) (int64, error), mapper Mapper, options ...string) (*Searcher, *Writer) {
 	var versionField string
 	if len(options) >= 1 && len(options[0]) > 0 {
 		versionField = options[0]
 	}
-	writer := NewWriter(client, indexName, modelType, versionField)
+	writer := NewWriterWithMapper(client, indexName, modelType, mapper, versionField)
 	searcher := NewSearcher(search)
 	return searcher, writer
 }
-
-func NewSearchWriterWithVersion(client *elasticsearch.Client, indexName string, modelType reflect.Type, versionField string, search func(context.Context, interface{}) (interface{}, int64, error)) (*Searcher, *Writer) {
-	writer := NewWriter(client, indexName, modelType, versionField)
-	searcher := NewSearcher(search)
-	return searcher, writer
+func NewSearchWriter(client *elasticsearch.Client, indexName string, modelType reflect.Type, buildQuery func(interface{}) map[string]interface{}, getSort func(m interface{}) (string, error), options ...string) (*Searcher, *Writer) {
+	return NewSearchWriterWithMapper(client, indexName, modelType, buildQuery, getSort, nil, options...)
 }
-
-func NewDefaultSearchWriterWithVersion(client *elasticsearch.Client, indexName string, modelType reflect.Type, versionField string, options...func(m interface{}) (string, int64, int64, int64, error)) (*Searcher, *Writer) {
-	writer := NewWriter(client, indexName, modelType, versionField)
-	searcher := NewDefaultSearcher(client, indexName, modelType, options...)
-	return searcher, writer
-}
-
-func NewDefaultSearchWriter(client *elasticsearch.Client, indexName string, modelType reflect.Type, options...func(m interface{}) (string, int64, int64, int64, error)) (*Searcher, *Writer) {
-	writer := NewWriter(client, indexName, modelType, "")
-	searcher := NewDefaultSearcher(client, indexName, modelType, options...)
+func NewSearchWriterWithMapper(client *elasticsearch.Client, indexName string, modelType reflect.Type, buildQuery func(interface{}) map[string]interface{}, getSort func(m interface{}) (string, error), mapper Mapper, options ...string) (*Searcher, *Writer) {
+	var versionField string
+	if len(options) >= 1 && len(options[0]) > 0 {
+		versionField = options[0]
+	}
+	writer := NewWriterWithMapper(client, indexName, modelType, mapper, versionField)
+	var searcher *Searcher
+	if mapper != nil {
+		searcher = NewSearcherWithQuery(client, indexName, buildQuery, getSort, mapper.DbToModel)
+	} else {
+		searcher = NewSearcherWithQuery(client, indexName, buildQuery, getSort)
+	}
 	return searcher, writer
 }

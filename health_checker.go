@@ -25,7 +25,7 @@ func NewElasticSearchHealthChecker(client *elasticsearch.Client, name string, ti
 
 func NewHealthChecker(client *elasticsearch.Client, options ...string) *HealthChecker {
 	var name string
-	if len(options) >= 1 && len(options[0]) > 0 {
+	if len(options) > 0 && len(options[0]) > 0 {
 		name = options[0]
 	} else {
 		name = "elasticsearch"

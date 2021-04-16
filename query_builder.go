@@ -2,30 +2,12 @@ package elasticsearch
 
 import (
 	"errors"
-	"github.com/elastic/go-elasticsearch"
 	"reflect"
 	"strings"
 	"time"
 
 	"github.com/common-go/search"
 )
-
-func NewDefaultSearcher(client *elasticsearch.Client, indexName string, modelType reflect.Type, options...func(m interface{}) (string, int64, int64, int64, error)) *Searcher {
-	b := NewDefaultSearchBuilder(client, indexName, modelType, options...)
-	s := NewSearcher(b.Search)
-	return s
-}
-
-func NewDefaultSearchBuilder(client *elasticsearch.Client, indexName string, modelType reflect.Type, options...func(m interface{}) (string, int64, int64, int64, error)) *SearchBuilder {
-	var extract func(m interface{}) (string, int64, int64, int64, error)
-	if len(options) > 0 && options[0] != nil {
-		extract = options[0]
-	} else {
-		extract = ExtractSearchInfo
-	}
-	queryBuilder := NewQueryBuilder(modelType)
-	return &SearchBuilder{Client: client, IndexName: indexName, ModelType: modelType, BuildQuery: queryBuilder.BuildQuery, ExtractSearchInfo: extract}
-}
 
 type QueryBuilder struct {
 	ModelType reflect.Type

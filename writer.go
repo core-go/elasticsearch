@@ -8,15 +8,28 @@ import (
 	"github.com/elastic/go-elasticsearch"
 )
 
+type Mapper interface {
+	DbToModel(ctx context.Context, model interface{}) (interface{}, error)
+	ModelToDb(ctx context.Context, model interface{}) (interface{}, error)
+}
+
 type Writer struct {
 	*Loader
 	maps         map[string]string
 	versionField string
 	versionIndex int
+	Mapper       Mapper
 }
-
 func NewWriter(client *elasticsearch.Client, indexName string, modelType reflect.Type, options ...string) *Writer {
-	defaultViewService := NewLoader(client, indexName, modelType)
+	return NewWriterWithMapper(client, indexName, modelType, nil, options...)
+}
+func NewWriterWithMapper(client *elasticsearch.Client, indexName string, modelType reflect.Type, mapper Mapper, options ...string) *Writer {
+	var loader *Loader
+	if mapper != nil {
+		loader = NewLoader(client, indexName, modelType, mapper.DbToModel)
+	} else {
+		loader = NewLoader(client, indexName, modelType)
+	}
 	var versionField string
 	if len(options) >= 1 && len(options[0]) > 0 {
 		versionField = options[0]
@@ -24,10 +37,10 @@ func NewWriter(client *elasticsearch.Client, indexName string, modelType reflect
 	if len(versionField) > 0 {
 		index, _ := FindFieldByName(modelType, versionField)
 		if index >= 0 {
-			return &Writer{Loader: defaultViewService, maps: MakeMapJson(modelType), versionField: versionField, versionIndex: index}
+			return &Writer{Loader: loader, maps: MakeMapJson(modelType), versionField: versionField, versionIndex: index}
 		}
 	}
-	return &Writer{Loader: defaultViewService, maps: MakeMapJson(modelType), versionField: "", versionIndex: -1}
+	return &Writer{Loader: loader, maps: MakeMapJson(modelType), Mapper: mapper, versionField: "", versionIndex: -1}
 }
 
 func (m *Writer) Insert(ctx context.Context, model interface{}) (int64, error) {
