@@ -1,7 +1,6 @@
-package elasticsearch
+package query
 
 import (
-	"errors"
 	"reflect"
 	"strings"
 	"time"
@@ -9,18 +8,18 @@ import (
 	"github.com/common-go/search"
 )
 
-type QueryBuilder struct {
+type Builder struct {
 	ModelType reflect.Type
 }
 
-func NewQueryBuilder(resultModelType reflect.Type) *QueryBuilder {
-	return &QueryBuilder{ModelType: resultModelType}
+func NewBuilder(resultModelType reflect.Type) *Builder {
+	return &Builder{ModelType: resultModelType}
 }
-func (b *QueryBuilder) BuildQuery(sm interface{}) map[string]interface{} {
-	return BuildQuery(sm, b.ModelType)
+func (b *Builder) BuildQuery(sm interface{}) map[string]interface{} {
+	return Build(sm, b.ModelType)
 }
 
-func BuildQuery(sm interface{}, resultModelType reflect.Type) map[string]interface{} {
+func Build(sm interface{}, resultModelType reflect.Type) map[string]interface{} {
 	query := map[string]interface{}{}
 	if _, ok := sm.(*search.SearchModel); ok {
 		return query
@@ -41,7 +40,7 @@ func BuildQuery(sm interface{}, resultModelType reflect.Type) map[string]interfa
 			}
 			continue
 		} else if rangeDate, ok := fieldValue.(search.DateRange); ok {
-			_, columnName := FindFieldByName(resultModelType, value.Type().Field(i).Name)
+			_, columnName := findFieldByName(resultModelType, value.Type().Field(i).Name)
 
 			actionDateQuery := map[string]interface{}{}
 
@@ -52,7 +51,7 @@ func BuildQuery(sm interface{}, resultModelType reflect.Type) map[string]interfa
 			actionDateQuery["$lte"] = rangeDate.EndDate
 			query[columnName] = actionDateQuery
 		} else if rangeDate, ok := fieldValue.(*search.DateRange); ok && rangeDate != nil {
-			_, columnName := FindFieldByName(resultModelType, value.Type().Field(i).Name)
+			_, columnName := findFieldByName(resultModelType, value.Type().Field(i).Name)
 
 			actionDateQuery := map[string]interface{}{}
 
@@ -63,7 +62,7 @@ func BuildQuery(sm interface{}, resultModelType reflect.Type) map[string]interfa
 			actionDateQuery["$lte"] = rangeDate.EndDate
 			query[columnName] = actionDateQuery
 		} else if rangeTime, ok := fieldValue.(search.TimeRange); ok {
-			_, columnName := FindFieldByName(resultModelType, value.Type().Field(i).Name)
+			_, columnName := findFieldByName(resultModelType, value.Type().Field(i).Name)
 
 			actionDateQuery := map[string]interface{}{}
 
@@ -72,7 +71,7 @@ func BuildQuery(sm interface{}, resultModelType reflect.Type) map[string]interfa
 			actionDateQuery["$lt"] = rangeTime.EndTime
 			query[columnName] = actionDateQuery
 		} else if rangeTime, ok := fieldValue.(*search.TimeRange); ok && rangeTime != nil {
-			_, columnName := FindFieldByName(resultModelType, value.Type().Field(i).Name)
+			_, columnName := findFieldByName(resultModelType, value.Type().Field(i).Name)
 
 			actionDateQuery := map[string]interface{}{}
 
@@ -81,7 +80,7 @@ func BuildQuery(sm interface{}, resultModelType reflect.Type) map[string]interfa
 			actionDateQuery["$lt"] = rangeTime.EndTime
 			query[columnName] = actionDateQuery
 		} else if numberRange, ok := fieldValue.(search.NumberRange); ok {
-			_, columnName := FindFieldByName(resultModelType, value.Type().Field(i).Name)
+			_, columnName := findFieldByName(resultModelType, value.Type().Field(i).Name)
 			amountQuery := map[string]interface{}{}
 
 			if numberRange.Min != nil {
@@ -99,7 +98,7 @@ func BuildQuery(sm interface{}, resultModelType reflect.Type) map[string]interfa
 				query[columnName] = amountQuery
 			}
 		} else if numberRange, ok := fieldValue.(*search.NumberRange); ok && numberRange != nil {
-			_, columnName := FindFieldByName(resultModelType, value.Type().Field(i).Name)
+			_, columnName := findFieldByName(resultModelType, value.Type().Field(i).Name)
 			amountQuery := map[string]interface{}{}
 
 			if numberRange.Min != nil {
@@ -118,14 +117,14 @@ func BuildQuery(sm interface{}, resultModelType reflect.Type) map[string]interfa
 			}
 		} else if value.Field(i).Kind().String() == "slice" {
 			actionDateQuery := map[string]interface{}{}
-			_, columnName := FindFieldByName(resultModelType, value.Type().Field(i).Name)
+			_, columnName := findFieldByName(resultModelType, value.Type().Field(i).Name)
 			actionDateQuery["$in"] = fieldValue
 			query[columnName] = actionDateQuery
 		} else {
 			t := value.Field(i).Kind().String()
 			if _, ok := fieldValue.(*search.SearchModel); t == "bool" || (strings.Contains(t, "int") && fieldValue != 0) || (strings.Contains(t, "float") && fieldValue != 0) || (!ok && t == "string" && value.Field(i).Len() > 0) || (!ok && t == "ptr" &&
 				value.Field(i).Pointer() != 0) {
-				_, columnName := FindFieldByName(resultModelType, value.Type().Field(i).Name)
+				_, columnName := findFieldByName(resultModelType, value.Type().Field(i).Name)
 				if len(columnName) > 0 {
 					query[columnName] = fieldValue
 				}
@@ -135,17 +134,17 @@ func BuildQuery(sm interface{}, resultModelType reflect.Type) map[string]interfa
 	return query
 }
 
-func ExtractSearchInfo(m interface{}) (string, int64, int64, int64, error) {
-	if sModel, ok := m.(*search.SearchModel); ok {
-		return sModel.Sort, sModel.Page, sModel.Limit, sModel.FirstLimit, nil
-	} else {
-		value := reflect.Indirect(reflect.ValueOf(m))
-		numField := value.NumField()
-		for i := 0; i < numField; i++ {
-			if sModel1, ok := value.Field(i).Interface().(*search.SearchModel); ok {
-				return sModel1.Sort, sModel1.Page, sModel1.Limit, sModel1.FirstLimit, nil
+func findFieldByName(modelType reflect.Type, fieldName string) (index int, jsonTagName string) {
+	numField := modelType.NumField()
+	for index := 0; index < numField; index++ {
+		field := modelType.Field(index)
+		if field.Name == fieldName {
+			jsonTagName := fieldName
+			if jsonTag, ok := field.Tag.Lookup("json"); ok {
+				jsonTagName = strings.Split(jsonTag, ",")[0]
 			}
+			return index, jsonTagName
 		}
-		return "", 0, 0, 0, errors.New("cannot extract sort, pageIndex, pageSize, firstPageSize from model")
 	}
+	return -1, fieldName
 }
