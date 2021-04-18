@@ -9,11 +9,11 @@ type SearchBuilder struct {
 	Client     *elasticsearch.Client
 	IndexName  string
 	BuildQuery func(searchModel interface{}) map[string]interface{}
-	GetSort    func(m interface{}) (string, error)
+	GetSort    func(m interface{}) string
 	Map        func(ctx context.Context, model interface{}) (interface{}, error)
 }
 
-func NewSearchBuilder(client *elasticsearch.Client, indexName string, buildQuery func(interface{}) map[string]interface{}, getSort func(m interface{}) (string, error), options ...func(context.Context, interface{}) (interface{}, error)) *SearchBuilder {
+func NewSearchBuilder(client *elasticsearch.Client, indexName string, buildQuery func(interface{}) map[string]interface{}, getSort func(m interface{}) string, options ...func(context.Context, interface{}) (interface{}, error)) *SearchBuilder {
 	var mp func(context.Context, interface{}) (interface{}, error)
 	if len(options) > 0 {
 		mp = options[0]
@@ -22,10 +22,7 @@ func NewSearchBuilder(client *elasticsearch.Client, indexName string, buildQuery
 }
 func (b *SearchBuilder) Search(ctx context.Context, sm interface{}, results interface{}, pageIndex int64, pageSize int64, options ...int64) (int64, error) {
 	query := b.BuildQuery(sm)
-	s, err := b.GetSort(sm)
-	if err != nil {
-		return 0, err
-	}
+	s := b.GetSort(sm)
 	var sort []string
 	sort = BuildSort(s)
 	var firstPageSize int64

@@ -19,10 +19,10 @@ func NewDefaultSearchWriterWithMapper(client *elasticsearch.Client, indexName st
 	searcher := NewSearcher(search)
 	return searcher, writer
 }
-func NewSearchWriter(client *elasticsearch.Client, indexName string, modelType reflect.Type, buildQuery func(interface{}) map[string]interface{}, getSort func(m interface{}) (string, error), options ...string) (*Searcher, *Writer) {
+func NewSearchWriter(client *elasticsearch.Client, indexName string, modelType reflect.Type, buildQuery func(interface{}) map[string]interface{}, getSort func(m interface{}) string, options ...string) (*Searcher, *Writer) {
 	return NewSearchWriterWithMapper(client, indexName, modelType, buildQuery, getSort, nil, options...)
 }
-func NewSearchWriterWithMapper(client *elasticsearch.Client, indexName string, modelType reflect.Type, buildQuery func(interface{}) map[string]interface{}, getSort func(m interface{}) (string, error), mapper Mapper, options ...string) (*Searcher, *Writer) {
+func NewSearchWriterWithMapper(client *elasticsearch.Client, indexName string, modelType reflect.Type, buildQuery func(interface{}) map[string]interface{}, getSort func(m interface{}) string, mapper Mapper, options ...string) (*Searcher, *Writer) {
 	var versionField string
 	if len(options) >= 1 && len(options[0]) > 0 {
 		versionField = options[0]
