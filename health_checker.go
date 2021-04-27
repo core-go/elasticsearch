@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/elastic/go-elasticsearch"
+	"github.com/elastic/go-elasticsearch/v7"
 )
 
 type HealthChecker struct {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/elastic/go-elasticsearch"
+	"github.com/elastic/go-elasticsearch/v7"
 )
 
 type ElasticSearchWriter struct {

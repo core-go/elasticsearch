@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/elastic/go-elasticsearch"
-	"github.com/elastic/go-elasticsearch/esapi"
-	"github.com/elastic/go-elasticsearch/esutil"
+	"github.com/elastic/go-elasticsearch/v7"
+	"github.com/elastic/go-elasticsearch/v7/esapi"
+	"github.com/elastic/go-elasticsearch/v7/esutil"
 )
 
 type Config struct {
@@ -352,17 +352,17 @@ func InsertOne(ctx context.Context, es *elasticsearch.Client, indexName string, 
 	}
 }
 
-func BuildIndicesResult(listIds, successIds, failIds []interface{}) (successIndices, failureIndices []int64) {
+func BuildIndicesResult(listIds, successIds, failIds []interface{}) (successIndices, failureIndices []int) {
 	if len(listIds) > 0 {
 		for _, idValue := range listIds {
 			for index, id := range successIds {
 				if id == idValue {
-					successIndices = append(successIndices, int64(index))
+					successIndices = append(successIndices, int(index))
 				}
 			}
 			for index, id := range failIds {
 				if id == idValue {
-					failureIndices = append(failureIndices, int64(index))
+					failureIndices = append(failureIndices, int(index))
 				}
 			}
 		}
