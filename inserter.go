@@ -2,7 +2,6 @@ package elasticsearch
 
 import (
 	"context"
-	"github.com/elastic/go-elasticsearch"
 	"reflect"
 
 	"github.com/elastic/go-elasticsearch/v7"
