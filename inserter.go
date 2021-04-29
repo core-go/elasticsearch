@@ -3,17 +3,16 @@ package elasticsearch
 import (
 	"context"
 	"reflect"
-
-	"github.com/elastic/go-elasticsearch/v7"
+	es"github.com/elastic/go-elasticsearch/v7"
 )
 
 type Inserter struct {
-	client    *elasticsearch.Client
+	client    *es.Client
 	indexName string
 	Map       func(ctx context.Context, model interface{}) (interface{}, error)
 }
 
-func NewInserter(client *elasticsearch.Client, indexName string, options ...func(context.Context, interface{}) (interface{}, error)) *Inserter {
+func NewInserter(client *es.Client, indexName string, options ...func(context.Context, interface{}) (interface{}, error)) *Inserter {
 	var mp func(context.Context, interface{}) (interface{}, error)
 	if len(options) > 0 {
 		mp = options[0]

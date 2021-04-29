@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"github.com/elastic/go-elasticsearch/v7"
+	es"github.com/elastic/go-elasticsearch/v7"
 )
 
 type Mapper interface {
@@ -19,10 +19,10 @@ type Writer struct {
 	versionIndex int
 	Mapper       Mapper
 }
-func NewWriter(client *elasticsearch.Client, indexName string, modelType reflect.Type, options ...string) *Writer {
+func NewWriter(client *es.Client, indexName string, modelType reflect.Type, options ...string) *Writer {
 	return NewWriterWithMapper(client, indexName, modelType, nil, options...)
 }
-func NewWriterWithMapper(client *elasticsearch.Client, indexName string, modelType reflect.Type, mapper Mapper, options ...string) *Writer {
+func NewWriterWithMapper(client *es.Client, indexName string, modelType reflect.Type, mapper Mapper, options ...string) *Writer {
 	var loader *Loader
 	if mapper != nil {
 		loader = NewLoader(client, indexName, modelType, mapper.DbToModel)
