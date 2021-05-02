@@ -1,11 +1,10 @@
 package query
 
 import (
+	"github.com/core-go/search"
 	"reflect"
 	"strings"
 	"time"
-
-	"github.com/common-go/search"
 )
 
 type Builder struct {
