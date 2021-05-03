@@ -2,34 +2,34 @@ package elasticsearch
 
 import (
 	"context"
+	"github.com/elastic/go-elasticsearch/v7"
 	"log"
 	"reflect"
-	"github.com/elastic/go-elasticsearch/v7"
 )
 
 type Loader struct {
-	client    *elasticsearch.Client
-	indexName string
-	modelType reflect.Type
-	idName    string
-	idIndex   int
-	Map       func(ctx context.Context, model interface{}) (interface{}, error)
+	client     *elasticsearch.Client
+	indexName  string
+	modelType  reflect.Type
+	jsonIdName string
+	idIndex    int
+	Map        func(ctx context.Context, model interface{}) (interface{}, error)
 }
 
 func NewLoader(client *elasticsearch.Client, indexName string, modelType reflect.Type, options ...func(context.Context, interface{}) (interface{}, error)) *Loader {
-	idIndex, idName, _ := FindIdField(modelType)
-	if len(idName) == 0 {
+	idIndex, _, jsonIdName := FindIdField(modelType)
+	if idIndex < 0 {
 		log.Println(modelType.Name() + " repository can't use functions that need Id value (Ex Load, Exist, Save, Update) because don't have any fields of " + modelType.Name() + " struct define _id bson tag.")
 	}
 	var mp func(context.Context, interface{}) (interface{}, error)
 	if len(options) > 0 {
 		mp = options[0]
 	}
-	return &Loader{client: client, indexName: indexName, modelType: modelType, idName: idName, idIndex: idIndex, Map: mp}
+	return &Loader{client: client, indexName: indexName, modelType: modelType, jsonIdName: jsonIdName, idIndex: idIndex, Map: mp}
 }
 
-func (m *Loader) Keys() []string {
-	return []string{m.indexName}
+func (m *Loader) Id() string {
+	return m.indexName
 }
 
 func (m *Loader) All(ctx context.Context) (interface{}, error) {
