@@ -2,9 +2,8 @@ package elasticsearch
 
 import (
 	"context"
-	"reflect"
-
 	"github.com/elastic/go-elasticsearch/v7"
+	"reflect"
 )
 
 func NewDefaultSearchLoader(client *elasticsearch.Client, indexName string, modelType reflect.Type, search func(context.Context, interface{}, interface{}, int64, int64, ...int64) (int64, error), options ...func(context.Context, interface{}) (interface{}, error)) (*Searcher, *Loader) {

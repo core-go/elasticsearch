@@ -3,8 +3,8 @@ package elasticsearch
 import (
 	"context"
 	"fmt"
+	es "github.com/elastic/go-elasticsearch/v7"
 	"reflect"
-	es"github.com/elastic/go-elasticsearch/v7"
 )
 
 type Mapper interface {
@@ -19,6 +19,7 @@ type Writer struct {
 	versionIndex int
 	Mapper       Mapper
 }
+
 func NewWriter(client *es.Client, indexName string, modelType reflect.Type, options ...string) *Writer {
 	return NewWriterWithMapper(client, indexName, modelType, nil, options...)
 }

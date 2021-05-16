@@ -7,14 +7,15 @@ import (
 	"github.com/elastic/go-elasticsearch/v7/esutil"
 	"reflect"
 )
+
 type BatchInserter struct {
-	Es *elasticsearch.Client
+	Es        *elasticsearch.Client
 	IndexName string
 	ModelType reflect.Type
 }
 
-func NewBatchInserter(es *elasticsearch.Client, indexName string, modelType reflect.Type, options...func(context.Context, interface{}) (interface{}, error)) *BatchInserter {
-	return &BatchInserter{Es: es,IndexName: indexName,ModelType: modelType}
+func NewBatchInserter(es *elasticsearch.Client, indexName string, modelType reflect.Type, options ...func(context.Context, interface{}) (interface{}, error)) *BatchInserter {
+	return &BatchInserter{Es: es, IndexName: indexName, ModelType: modelType}
 }
 
 func (w *BatchInserter) Write(ctx context.Context, model interface{}) ([]int, []int, error) {
@@ -118,7 +119,6 @@ func InsertMany(ctx context.Context, es *elasticsearch.Client, indexName string,
 	}
 	return successIndices, failureIndices, errors.New("invalid input")
 }
-
 
 func UpsertMany(ctx context.Context, es *elasticsearch.Client, indexName string, modelType reflect.Type, model interface{}) ([]int, []int, error) {
 	value := reflect.Indirect(reflect.ValueOf(model))

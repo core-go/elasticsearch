@@ -2,8 +2,8 @@ package elasticsearch
 
 import (
 	"context"
+	es "github.com/elastic/go-elasticsearch/v7"
 	"reflect"
-	es"github.com/elastic/go-elasticsearch/v7"
 )
 
 type Inserter struct {

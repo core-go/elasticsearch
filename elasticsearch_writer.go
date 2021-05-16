@@ -2,9 +2,8 @@ package elasticsearch
 
 import (
 	"context"
-	"reflect"
-
 	"github.com/elastic/go-elasticsearch/v7"
+	"reflect"
 )
 
 type ElasticSearchWriter struct {
