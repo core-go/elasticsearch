@@ -17,23 +17,95 @@ import (
 	"github.com/elastic/go-elasticsearch/v7/esutil"
 )
 
+type TransportConfig struct {
+	MaxIdleConnsPerHost   *int   `mapstructure:"max_idle_conns_per_host" json:"maxIdleConnsPerHost,omitempty" gorm:"column:maxidleconnsperhost" bson:"maxIdleConnsPerHost,omitempty" dynamodbav:"maxIdleConnsPerHost,omitempty" firestore:"maxIdleConnsPerHost,omitempty"`
+	ResponseHeaderTimeout *int64 `mapstructure:"response_header_timeout" json:"responseHeaderTimeout,omitempty" gorm:"column:responseheadertimeout" bson:"responseHeaderTimeout,omitempty" dynamodbav:"responseHeaderTimeout,omitempty" firestore:"responseHeaderTimeout,omitempty"`
+	Timeout               *int64 `mapstructure:"timeout" json:"timeout,omitempty" gorm:"column:timeout" bson:"timeout,omitempty" dynamodbav:"timeout,omitempty" firestore:"timeout,omitempty"`
+}
 type Config struct {
-	Addresses []string `mapstructure:"addresses"`
+	Addresses             []string        `mapstructure:"addresses" json:"addresses,omitempty" gorm:"column:addresses" bson:"addresses,omitempty" dynamodbav:"addresses,omitempty" firestore:"addresses,omitempty"`
+	Username              *string         `mapstructure:"username" json:"username,omitempty" gorm:"column:username" bson:"username,omitempty" dynamodbav:"username,omitempty" firestore:"username,omitempty"`
+	Password              *string         `mapstructure:"password" json:"password,omitempty" gorm:"column:password" bson:"password,omitempty" dynamodbav:"password,omitempty" firestore:"password,omitempty"`
+	CloudID               *string         `mapstructure:"cloud_id" json:"cloudID,omitempty" gorm:"column:cloudid" bson:"cloudID,omitempty" dynamodbav:"cloudID,omitempty" firestore:"cloudID,omitempty"`
+	APIKey                *string         `mapstructure:"api_key" json:"apiKey,omitempty" gorm:"column:apikey" bson:"apiKey,omitempty" dynamodbav:"apiKey,omitempty" firestore:"apiKey,omitempty"`
+	DisableRetry          *bool           `mapstructure:"disable_retry" json:"disableRetry,omitempty" gorm:"column:disableretry" bson:"disableRetry,omitempty" dynamodbav:"disableRetry,omitempty" firestore:"disableRetry,omitempty"`
+	EnableRetryOnTimeout  *bool           `mapstructure:"enableRetryOnTimeout" json:"enableRetryOnTimeout,omitempty" gorm:"column:enableretryontimeout" bson:"enableRetryOnTimeout,omitempty" dynamodbav:"enableRetryOnTimeout,omitempty" firestore:"enableRetryOnTimeout,omitempty"`
+	MaxRetries            *int            `mapstructure:"max_retries" json:"maxRetries,omitempty" gorm:"column:maxretries" bson:"maxRetries,omitempty" dynamodbav:"maxRetries,omitempty" firestore:"maxRetries,omitempty"`
+	DiscoverNodesOnStart  *bool           `mapstructure:"discover_nodes_on_start" json:"discoverNodesOnStart,omitempty" gorm:"column:discovernodesonstart" bson:"discoverNodesOnStart,omitempty" dynamodbav:"discoverNodesOnStart,omitempty" firestore:"discoverNodesOnStart,omitempty"`
+	DiscoverNodesInterval *int64          `mapstructure:"discover_nodes_interval" json:"discoverNodesInterval,omitempty" gorm:"column:discovernodesinterval" bson:"discoverNodesInterval,omitempty" dynamodbav:"discoverNodesInterval,omitempty" firestore:"discoverNodesInterval,omitempty"`
+	EnableMetrics         *bool           `mapstructure:"enable_metrics" json:"enableMetrics,omitempty" gorm:"column:enablemetrics" bson:"enableMetrics,omitempty" dynamodbav:"enableMetrics,omitempty" firestore:"enableMetrics,omitempty"`
+	EnableDebugLogger     *bool           `mapstructure:"enable_debug_logger" json:"enableDebugLogger,omitempty" gorm:"column:enableDebugLogger" bson:"enableDebugLogger,omitempty" dynamodbav:"enableDebugLogger,omitempty" firestore:"enableDebugLogger,omitempty"`
+	DisableMetaHeader     *bool           `mapstructure:"disable_meta_header" json:"disableMetaHeader,omitempty" gorm:"column:disablemetaheader" bson:"disableMetaHeader,omitempty" dynamodbav:"disableMetaHeader,omitempty" firestore:"disableMetaHeader,omitempty"`
+	Transport             TransportConfig `mapstructure:"transport" json:"transport,omitempty" gorm:"column:transport" bson:"transport,omitempty" dynamodbav:"transport,omitempty" firestore:"transport,omitempty"`
+}
+
+func GetConfig(cc Config) elasticsearch.Config {
+	t := http.Transport{
+		TLSClientConfig: &tls.Config{
+			MinVersion: tls.VersionTLS11,
+			// ...
+		},
+	}
+	if cc.Transport.MaxIdleConnsPerHost != nil {
+		t.MaxConnsPerHost = *cc.Transport.MaxIdleConnsPerHost
+	} else {
+		t.MaxConnsPerHost = 10
+	}
+	if cc.Transport.ResponseHeaderTimeout != nil {
+		t.ResponseHeaderTimeout = time.Duration(*cc.Transport.ResponseHeaderTimeout) * time.Millisecond
+	} else {
+		t.ResponseHeaderTimeout = time.Minute
+	}
+	if cc.Transport.Timeout != nil {
+		t.DialContext = (&net.Dialer{Timeout: time.Duration(*cc.Transport.Timeout) * time.Millisecond}).DialContext
+	} else {
+		t.DialContext = (&net.Dialer{Timeout: time.Second}).DialContext
+	}
+	c := elasticsearch.Config{
+		Addresses: cc.Addresses,
+		Transport: &t,
+	}
+	if cc.Username != nil {
+		c.Username = *cc.Username
+	}
+	if cc.Password != nil {
+		c.Password = *cc.Password
+	}
+	if cc.CloudID != nil {
+		c.CloudID = *cc.CloudID
+	}
+	if cc.APIKey != nil {
+		c.APIKey = *cc.APIKey
+	}
+	if cc.DisableRetry != nil {
+		c.DisableRetry = *cc.DisableRetry
+	}
+	if cc.EnableRetryOnTimeout != nil {
+		c.EnableRetryOnTimeout = *cc.EnableRetryOnTimeout
+	}
+	if cc.MaxRetries != nil {
+		c.MaxRetries = *cc.MaxRetries
+	}
+	if cc.DiscoverNodesOnStart != nil {
+		c.DiscoverNodesOnStart = *cc.DiscoverNodesOnStart
+	}
+	if cc.DiscoverNodesInterval != nil {
+		c.DiscoverNodesInterval = time.Duration(*cc.DiscoverNodesInterval) * time.Millisecond
+	}
+	if cc.EnableMetrics != nil {
+		c.EnableMetrics = *cc.EnableMetrics
+	}
+	if cc.EnableDebugLogger != nil {
+		c.EnableDebugLogger = *cc.EnableDebugLogger
+	}
+	if cc.DisableMetaHeader != nil {
+		c.DisableMetaHeader = *cc.DisableMetaHeader
+	}
+	return c
 }
 
 func Connect(config Config) (*elasticsearch.Client, error) {
-	c := elasticsearch.Config{
-		Addresses: config.Addresses,
-		Transport: &http.Transport{
-			MaxIdleConnsPerHost:   10,
-			ResponseHeaderTimeout: time.Minute,
-			DialContext:           (&net.Dialer{Timeout: time.Second}).DialContext,
-			TLSClientConfig: &tls.Config{
-				MinVersion: tls.VersionTLS11,
-				// ...
-			},
-		},
-	}
+	c := GetConfig(config)
 	return elasticsearch.NewClient(c)
 }
 
@@ -507,7 +579,7 @@ func MapModels(ctx context.Context, models interface{}, mp func(context.Context,
 			if k == reflect.Struct {
 				y := x.Addr().Interface()
 				mp(ctx, y)
-			} else  {
+			} else {
 				y := x.Interface()
 				mp(ctx, y)
 			}
