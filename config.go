@@ -30,7 +30,7 @@ type Config struct {
 	Transport             TransportConfig `mapstructure:"transport" json:"transport,omitempty" gorm:"column:transport" bson:"transport,omitempty" dynamodbav:"transport,omitempty" firestore:"transport,omitempty"`
 }
 
-func GetConfig(conf Config) elasticsearch.Config {
+func GetConfig(conf Config, timeouts ...time.Duration) elasticsearch.Config {
 	t := http.Transport{TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS11}}
 	if conf.Transport.MaxIdleConnsPerHost != nil {
 		t.MaxConnsPerHost = *conf.Transport.MaxIdleConnsPerHost
@@ -42,10 +42,12 @@ func GetConfig(conf Config) elasticsearch.Config {
 	} else {
 		t.ResponseHeaderTimeout = time.Minute
 	}
-	if conf.Transport.Timeout != nil {
+	if len(timeouts) >= 1 {
+		t.DialContext = (&net.Dialer{Timeout: timeouts[0]}).DialContext
+	} else if conf.Transport.Timeout != nil {
 		t.DialContext = (&net.Dialer{Timeout: time.Duration(*conf.Transport.Timeout) * time.Millisecond}).DialContext
 	} else {
-		t.DialContext = (&net.Dialer{Timeout: time.Second}).DialContext
+		t.DialContext = (&net.Dialer{Timeout: 4 * time.Second}).DialContext
 	}
 	c := elasticsearch.Config{
 		Addresses: conf.Addresses,

@@ -10,10 +10,11 @@ import (
 	"log"
 	"reflect"
 	"strings"
+	"time"
 )
 
-func Connect(config Config) (*elasticsearch.Client, error) {
-	c := GetConfig(config)
+func Connect(config Config, timeouts ...time.Duration) (*elasticsearch.Client, error) {
+	c := GetConfig(config, timeouts...)
 	return elasticsearch.NewClient(c)
 }
 
