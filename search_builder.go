@@ -20,16 +20,15 @@ func NewSearchBuilder(client *elasticsearch.Client, indexName string, buildQuery
 	}
 	return &SearchBuilder{Client: client, IndexName: indexName, BuildQuery: buildQuery, GetSort: getSort, Map: mp}
 }
-func (b *SearchBuilder) Search(ctx context.Context, sm interface{}, results interface{}, pageIndex int64, pageSize int64, options ...int64) (int64, error) {
+func (b *SearchBuilder) Search(ctx context.Context, sm interface{}, results interface{}, pageSize int64, options ...int64) (int64, string, error) {
 	query := b.BuildQuery(sm)
 	s := b.GetSort(sm)
 	var sort []string
 	sort = BuildSort(s)
-	var firstPageSize int64
+	var skip int64 = 0
 	if len(options) > 0 && options[0] > 0 {
-		firstPageSize = options[0]
-	} else {
-		firstPageSize = 0
+		skip = options[0]
 	}
-	return BuildSearchResult(ctx, b.Client, results, b.IndexName, query, sort, pageIndex, pageSize, firstPageSize, b.Map)
+	total, err := BuildSearchResult(ctx, b.Client, results, b.IndexName, query, sort, pageSize, skip, b.Map)
+	return total, "", err
 }

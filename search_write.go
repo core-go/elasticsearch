@@ -6,10 +6,10 @@ import (
 	"reflect"
 )
 
-func NewDefaultSearchWriter(client *elasticsearch.Client, indexName string, modelType reflect.Type, search func(context.Context, interface{}, interface{}, int64, int64, ...int64) (int64, error), options ...string) (*Searcher, *Writer) {
+func NewDefaultSearchWriter(client *elasticsearch.Client, indexName string, modelType reflect.Type, search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), options ...string) (*Searcher, *Writer) {
 	return NewDefaultSearchWriterWithMapper(client, indexName, modelType, search, nil, options...)
 }
-func NewDefaultSearchWriterWithMapper(client *elasticsearch.Client, indexName string, modelType reflect.Type, search func(context.Context, interface{}, interface{}, int64, int64, ...int64) (int64, error), mapper Mapper, options ...string) (*Searcher, *Writer) {
+func NewDefaultSearchWriterWithMapper(client *elasticsearch.Client, indexName string, modelType reflect.Type, search func(context.Context, interface{}, interface{}, int64, ...int64) (int64, string, error), mapper Mapper, options ...string) (*Searcher, *Writer) {
 	var versionField string
 	if len(options) >= 1 && len(options[0]) > 0 {
 		versionField = options[0]

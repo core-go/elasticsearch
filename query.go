@@ -10,24 +10,14 @@ import (
 	"strings"
 )
 
-func BuildSearchResult(ctx context.Context, db *elasticsearch.Client, results interface{}, indexName string, query map[string]interface{}, sort []string, pageIndex int64, pageSize int64, initPageSize int64, options...func(context.Context, interface{}) (interface{}, error)) (int64, error) {
+func BuildSearchResult(ctx context.Context, db *elasticsearch.Client, results interface{}, indexName string, query map[string]interface{}, sort []string, limit int64, offset int64, options...func(context.Context, interface{}) (interface{}, error)) (int64, error) {
 	var mp func(context.Context, interface{}) (interface{}, error)
 	if len(options) > 0 {
 		mp = options[0]
 	}
-	from := 0
-	size := 0
-	if initPageSize > 0 {
-		if pageIndex == 1 {
-			size = int(initPageSize)
-		} else {
-			from = int(pageSize*(pageIndex-2) + initPageSize)
-			size = int(pageSize)
-		}
-	} else {
-		from = int(pageSize * (pageIndex - 1))
-		size = int(pageSize)
-	}
+
+	from := int(offset)
+	size := int(limit)
 	req := esapi.SearchRequest{
 		Index: []string{indexName},
 		Body:  esutil.NewJSONReader(query),
