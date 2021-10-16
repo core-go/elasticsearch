@@ -7,7 +7,7 @@ import (
 	"reflect"
 )
 
-type Loader struct {
+type ElasticSearchLoader struct {
 	client     *elasticsearch.Client
 	indexName  string
 	modelType  reflect.Type
@@ -16,7 +16,7 @@ type Loader struct {
 	Map        func(ctx context.Context, model interface{}) (interface{}, error)
 }
 
-func NewLoader(client *elasticsearch.Client, indexName string, modelType reflect.Type, options ...func(context.Context, interface{}) (interface{}, error)) *Loader {
+func NewElasticSearchLoader(client *elasticsearch.Client, indexName string, modelType reflect.Type, options ...func(context.Context, interface{}) (interface{}, error)) *ElasticSearchLoader {
 	idIndex, _, jsonIdName := FindIdField(modelType)
 	if idIndex < 0 {
 		log.Println(modelType.Name() + " repository can't use functions that need Id value (Ex Load, Exist, Save, Update) because don't have any fields of " + modelType.Name() + " struct define _id bson tag.")
@@ -25,14 +25,14 @@ func NewLoader(client *elasticsearch.Client, indexName string, modelType reflect
 	if len(options) > 0 {
 		mp = options[0]
 	}
-	return &Loader{client: client, indexName: indexName, modelType: modelType, jsonIdName: jsonIdName, idIndex: idIndex, Map: mp}
+	return &ElasticSearchLoader{client: client, indexName: indexName, modelType: modelType, jsonIdName: jsonIdName, idIndex: idIndex, Map: mp}
 }
 
-func (m *Loader) Id() string {
+func (m *ElasticSearchLoader) Id() string {
 	return m.indexName
 }
 
-func (m *Loader) All(ctx context.Context) (interface{}, error) {
+func (m *ElasticSearchLoader) All(ctx context.Context) (interface{}, error) {
 	query := BuildQueryMap(m.indexName, nil)
 	result, err := Find(ctx, m.client, []string{m.indexName}, query, m.modelType)
 	if m.Map != nil && err == nil && result != nil {
@@ -41,9 +41,8 @@ func (m *Loader) All(ctx context.Context) (interface{}, error) {
 	return result, err
 }
 
-func (m *Loader) Load(ctx context.Context, id interface{}) (interface{}, error) {
-	sid := id.(string)
-	r, er1 := FindOneById(ctx, m.client, m.indexName, sid, m.modelType)
+func (m *ElasticSearchLoader) Load(ctx context.Context, id string) (interface{}, error) {
+	r, er1 := FindOneById(ctx, m.client, m.indexName, id, m.modelType)
 	if er1 != nil {
 		return r, er1
 	}
@@ -57,9 +56,8 @@ func (m *Loader) Load(ctx context.Context, id interface{}) (interface{}, error) 
 	return r, er1
 }
 
-func (m *Loader) Get(ctx context.Context, id interface{}, result interface{}) (bool, error) {
-	sid := id.(string)
-	ok, er0 := FindOneByIdAndDecode(ctx, m.client, m.indexName, sid, result)
+func (m *ElasticSearchLoader) Get(ctx context.Context, id string, result interface{}) (bool, error) {
+	ok, er0 := FindOneByIdAndDecode(ctx, m.client, m.indexName, id, result)
 	if ok && er0 == nil && m.Map != nil {
 		_, er2 := m.Map(ctx, result)
 		if er2 != nil {
@@ -69,11 +67,10 @@ func (m *Loader) Get(ctx context.Context, id interface{}, result interface{}) (b
 	return ok, er0
 }
 
-func (m *Loader) LoadAndDecode(ctx context.Context, id interface{}, result interface{}) (bool, error) {
+func (m *ElasticSearchLoader) LoadAndDecode(ctx context.Context, id string, result interface{}) (bool, error) {
 	return m.Get(ctx, id, result)
 }
 
-func (m *Loader) Exist(ctx context.Context, id interface{}) (bool, error) {
-	sid := id.(string)
-	return Exist(ctx, m.client, m.indexName, sid)
+func (m *ElasticSearchLoader) Exist(ctx context.Context, id string) (bool, error) {
+	return Exist(ctx, m.client, m.indexName, id)
 }
