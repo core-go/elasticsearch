@@ -2,7 +2,6 @@ package elasticsearch
 
 import (
 	"context"
-	"fmt"
 	es "github.com/elastic/go-elasticsearch/v7"
 	"reflect"
 )
@@ -44,27 +43,21 @@ func NewWriterWithMapper(client *es.Client, indexName string, modelType reflect.
 }
 
 func (m *Writer) Insert(ctx context.Context, model interface{}) (int64, error) {
-	return InsertOne(ctx, m.client, m.indexName, m.modelType, model)
+	return InsertOne(ctx, m.client, m.indexName, model, m.modelType, m.idIndex)
 }
 
 func (m *Writer) Update(ctx context.Context, model interface{}) (int64, error) {
-	return UpdateOne(ctx, m.client, m.indexName, model, m.modelType)
+	return UpdateOne(ctx, m.client, m.indexName, model, m.modelType, m.idIndex)
 }
 func (m *Writer) Patch(ctx context.Context, model map[string]interface{}) (int64, error) {
 	return PatchOne(ctx, m.client, m.indexName, m.jsonIdName, MapToDBObject(model, m.maps))
 }
-
 func (m *Writer) Delete(ctx context.Context, id interface{}) (int64, error) {
 	sid := id.(string)
 	return DeleteOne(ctx, m.client, m.indexName, sid)
 }
-
 func (m *Writer) Save(ctx context.Context, model interface{}) (int64, error) {
-	idIndex, _, _ := FindIdField(m.modelType)
-	if idIndex < 0 {
-		return 0, fmt.Errorf("missing document ID in the object")
-	}
 	modelValue := reflect.ValueOf(model)
-	id := modelValue.Field(idIndex).String()
+	id := modelValue.Field(m.idIndex).String()
 	return UpsertOne(ctx, m.client, m.indexName, id, model)
 }

@@ -296,9 +296,15 @@ func FindListIdField(modelType reflect.Type, model interface{}) (listIdS []inter
 	return
 }
 
-func InsertOne(ctx context.Context, es *elasticsearch.Client, indexName string, modelType reflect.Type, model interface{}) (int64, error) {
+func InsertOne(ctx context.Context, es *elasticsearch.Client, indexName string, model interface{}, modelType reflect.Type, opts...int) (int64, error) {
 	var req esapi.CreateRequest
-	if idIndex, _, _ := FindIdField(modelType); idIndex >= 0 {
+	idIndex := -1
+	if len(opts) > 0 && opts[0] >= 0 {
+		idIndex = opts[0]
+	} else {
+		idIndex, _, _ = FindIdField(modelType)
+	}
+	if idIndex >= 0 {
 		modelValue := reflect.Indirect(reflect.ValueOf(model))
 		idValue := modelValue.Field(idIndex).String()
 		body := BuildQueryWithoutIdFromObject(model)
@@ -351,8 +357,13 @@ func BuildIndicesResult(listIds, successIds, failIds []interface{}) (successIndi
 	return
 }
 
-func UpdateOne(ctx context.Context, es *elasticsearch.Client, indexName string, model interface{}, modelType reflect.Type) (int64, error) {
-	idIndex, _, _ := FindIdField(modelType)
+func UpdateOne(ctx context.Context, es *elasticsearch.Client, indexName string, model interface{}, modelType reflect.Type, opts ...int) (int64, error) {
+	idIndex := -1
+	if len(opts) > 0 && opts[0] >= 0 {
+		idIndex = opts[0]
+	} else {
+		idIndex, _, _ = FindIdField(modelType)
+	}
 	if idIndex < 0 {
 		return 0, errors.New("missing document ID in the object")
 	}
