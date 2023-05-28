@@ -351,18 +351,22 @@ func BuildIndicesResult(listIds, successIds, failIds []interface{}) (successIndi
 	return
 }
 
-func UpdateOne(ctx context.Context, es *elasticsearch.Client, indexName string, modelType reflect.Type, model interface{}) (int64, error) {
+func UpdateOne(ctx context.Context, es *elasticsearch.Client, indexName string, model interface{}, modelType reflect.Type) (int64, error) {
 	idIndex, _, _ := FindIdField(modelType)
 	if idIndex < 0 {
 		return 0, errors.New("missing document ID in the object")
 	}
 	modelValue := reflect.ValueOf(model)
 	idValue := modelValue.Field(idIndex).String()
-	body := BuildQueryWithoutIdFromObject(model)
+	// body := BuildQueryWithoutIdFromObject(model)
+
+	query := map[string]interface{}{
+		"doc": model,
+	}
 	req := esapi.UpdateRequest{
 		Index:      indexName,
 		DocumentID: idValue,
-		Body:       esutil.NewJSONReader(body),
+		Body:       esutil.NewJSONReader(query),
 		Refresh:    "true",
 	}
 	res, err := req.Do(ctx, es)
@@ -384,11 +388,14 @@ func UpdateOne(ctx context.Context, es *elasticsearch.Client, indexName string, 
 }
 
 func UpsertOne(ctx context.Context, es *elasticsearch.Client, indexName string, id string, model interface{}) (int64, error) {
-	body := BuildQueryWithoutIdFromObject(model)
+	// body := BuildQueryWithoutIdFromObject(model)
+	query := map[string]interface{}{
+		"doc": model,
+	}
 	req := esapi.IndexRequest{
 		Index:      indexName,
 		DocumentID: id,
-		Body:       esutil.NewJSONReader(body),
+		Body:       esutil.NewJSONReader(query),
 		Refresh:    "true",
 	}
 	res, err := req.Do(ctx, es)
@@ -407,16 +414,19 @@ func UpsertOne(ctx context.Context, es *elasticsearch.Client, indexName string, 
 	return successful, nil
 }
 
-func PatchOne(ctx context.Context, es *elasticsearch.Client, indexName string, model map[string]interface{}) (int64, error) {
-	idValue := reflect.ValueOf(model["_id"])
+func PatchOne(ctx context.Context, es *elasticsearch.Client, indexName string, id string, model map[string]interface{}) (int64, error) {
+	idValue := reflect.ValueOf(model[id])
 	if idValue.IsZero() {
 		return 0, errors.New("missing document ID in the map")
 	}
-	delete(model, "_id")
+	delete(model, id)
+	query := map[string]interface{}{
+		"doc": model,
+	}
 	req := esapi.UpdateRequest{
 		Index:      indexName,
 		DocumentID: idValue.String(),
-		Body:       esutil.NewJSONReader(model),
+		Body:       esutil.NewJSONReader(query),
 		Refresh:    "true",
 	}
 	res, err := req.Do(ctx, es)

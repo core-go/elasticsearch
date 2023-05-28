@@ -7,7 +7,7 @@ import (
 	"github.com/elastic/go-elasticsearch/v7"
 )
 
-type SearchBuilder struct {
+type SearchQuery struct {
 	Client     *elasticsearch.Client
 	IndexName  string
 	BuildQuery func(searchModel interface{}) map[string]interface{}
@@ -16,14 +16,17 @@ type SearchBuilder struct {
 	ModelType  reflect.Type
 }
 
-func NewSearchBuilder(client *elasticsearch.Client, indexName string, modelType reflect.Type, buildQuery func(interface{}) map[string]interface{}, getSort func(m interface{}) string, options ...func(context.Context, interface{}) (interface{}, error)) *SearchBuilder {
+func NewSearchBuilder(client *elasticsearch.Client, indexName string, modelType reflect.Type, buildQuery func(interface{}) map[string]interface{}, getSort func(m interface{}) string, options ...func(context.Context, interface{}) (interface{}, error)) *SearchQuery {
+	return NewSearchQuery(client, indexName, modelType, buildQuery, getSort, options...)
+}
+func NewSearchQuery(client *elasticsearch.Client, indexName string, modelType reflect.Type, buildQuery func(interface{}) map[string]interface{}, getSort func(m interface{}) string, options ...func(context.Context, interface{}) (interface{}, error)) *SearchQuery {
 	var mp func(context.Context, interface{}) (interface{}, error)
 	if len(options) > 0 {
 		mp = options[0]
 	}
-	return &SearchBuilder{Client: client, IndexName: indexName, BuildQuery: buildQuery, GetSort: getSort, Map: mp, ModelType: modelType}
+	return &SearchQuery{Client: client, IndexName: indexName, BuildQuery: buildQuery, GetSort: getSort, Map: mp, ModelType: modelType}
 }
-func (b *SearchBuilder) Search(ctx context.Context, sm interface{}, results interface{}, pageSize int64, skip int64) (int64, error) {
+func (b *SearchQuery) Search(ctx context.Context, sm interface{}, results interface{}, pageSize int64, skip int64) (int64, error) {
 	query := b.BuildQuery(sm)
 	s := b.GetSort(sm)
 	sort := BuildSort(s)

@@ -27,9 +27,9 @@ func (w *Updater) Write(ctx context.Context, model interface{}) error {
 		if er0 != nil {
 			return er0
 		}
-		_, er1 := UpdateOne(ctx, w.client, w.indexName, modelType, m2)
+		_, er1 := UpdateOne(ctx, w.client, w.indexName, m2, modelType)
 		return er1
 	}
-	_, er2 := UpdateOne(ctx, w.client, w.indexName, modelType, model)
+	_, er2 := UpdateOne(ctx, w.client, w.indexName, model, modelType)
 	return er2
 }

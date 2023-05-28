@@ -19,6 +19,6 @@ func (s *Searcher) Search(ctx context.Context, m interface{}, results interface{
 }
 
 func NewSearcherWithQuery(client *elasticsearch.Client, indexName string, modelType reflect.Type, buildQuery func(interface{}) map[string]interface{}, getSort func(m interface{}) string, options ...func(context.Context, interface{}) (interface{}, error)) *Searcher {
-	builder := NewSearchBuilder(client, indexName, modelType, buildQuery, getSort, options...)
+	builder := NewSearchQuery(client, indexName, modelType, buildQuery, getSort, options...)
 	return NewSearcher(builder.Search)
 }

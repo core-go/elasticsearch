@@ -48,10 +48,10 @@ func (m *Writer) Insert(ctx context.Context, model interface{}) (int64, error) {
 }
 
 func (m *Writer) Update(ctx context.Context, model interface{}) (int64, error) {
-	return UpdateOne(ctx, m.client, m.indexName, m.modelType, model)
+	return UpdateOne(ctx, m.client, m.indexName, model, m.modelType)
 }
 func (m *Writer) Patch(ctx context.Context, model map[string]interface{}) (int64, error) {
-	return PatchOne(ctx, m.client, m.indexName, MapToDBObject(model, m.maps))
+	return PatchOne(ctx, m.client, m.indexName, m.jsonIdName, MapToDBObject(model, m.maps))
 }
 
 func (m *Writer) Delete(ctx context.Context, id interface{}) (int64, error) {
