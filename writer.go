@@ -43,11 +43,11 @@ func NewWriterWithMapper(client *es.Client, indexName string, modelType reflect.
 }
 
 func (m *Writer) Insert(ctx context.Context, model interface{}) (int64, error) {
-	return InsertOne(ctx, m.client, m.indexName, model, m.modelType, m.idIndex)
+	return InsertOne(ctx, m.client, m.indexName, model, m.idIndex)
 }
 
 func (m *Writer) Update(ctx context.Context, model interface{}) (int64, error) {
-	return UpdateOne(ctx, m.client, m.indexName, model, m.modelType, m.idIndex)
+	return UpdateOne(ctx, m.client, m.indexName, model, m.idIndex)
 }
 func (m *Writer) Patch(ctx context.Context, model map[string]interface{}) (int64, error) {
 	return PatchOne(ctx, m.client, m.indexName, m.jsonIdName, MapToDBObject(model, m.maps))

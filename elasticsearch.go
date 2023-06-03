@@ -98,7 +98,6 @@ func MakeMapJson(modelType reflect.Type) map[string]string {
 	return maps
 }
 
-//For Insert
 func BuildQueryWithoutIdFromObject(object interface{}) map[string]interface{} {
 	valueOf := reflect.Indirect(reflect.ValueOf(object))
 	idIndex, _, _ := FindIdField(valueOf.Type())
@@ -168,19 +167,19 @@ func FindOneByIdAndDecode(ctx context.Context, es *elasticsearch.Client, indexNa
 	}
 	defer res.Body.Close()
 
-	if res.IsError() {
-		return false, errors.New("response error")
-	} else {
+	if !res.IsError() {
 		var r map[string]interface{}
-		if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
-			return false, err
-		} else {
-			if err := json.NewDecoder(esutil.NewJSONReader(r["_source"])).Decode(&result); err != nil {
+		if err := json.NewDecoder(res.Body).Decode(&r); err == nil {
+			hit := r["_source"].(map[string]interface{})
+			hit["id"] = r["_id"]
+			if err := json.NewDecoder(esutil.NewJSONReader(hit)).Decode(&result); err != nil {
 				return false, err
 			}
 			return true, nil
 		}
+		return false, err
 	}
+	return false, errors.New("response error")
 }
 
 func FindOne(ctx context.Context, es *elasticsearch.Client, index []string, query map[string]interface{}, modelType reflect.Type) (interface{}, error) {
@@ -266,7 +265,7 @@ func FindAndDecode(ctx context.Context, es *elasticsearch.Client, indexName []st
 
 func FindValueByJson(model interface{}, jsonTagName string) (index int, fieldName string, val string) {
 	object := reflect.Indirect(reflect.ValueOf(model))
-	modelType := reflect.TypeOf(object)
+	modelType := object.Type()
 
 	numField := modelType.NumField()
 	for i := 0; i < numField; i++ {
@@ -296,7 +295,9 @@ func FindListIdField(modelType reflect.Type, model interface{}) (listIdS []inter
 	return
 }
 
-func InsertOne(ctx context.Context, es *elasticsearch.Client, indexName string, model interface{}, modelType reflect.Type, opts...int) (int64, error) {
+func InsertOne(ctx context.Context, es *elasticsearch.Client, indexName string, model interface{}, opts ...int) (int64, error) {
+	object := reflect.Indirect(reflect.ValueOf(model))
+	modelType := object.Type()
 	var req esapi.CreateRequest
 	idIndex := -1
 	if len(opts) > 0 && opts[0] >= 0 {
@@ -357,7 +358,9 @@ func BuildIndicesResult(listIds, successIds, failIds []interface{}) (successIndi
 	return
 }
 
-func UpdateOne(ctx context.Context, es *elasticsearch.Client, indexName string, model interface{}, modelType reflect.Type, opts ...int) (int64, error) {
+func UpdateOne(ctx context.Context, es *elasticsearch.Client, indexName string, model interface{}, opts ...int) (int64, error) {
+	object := reflect.Indirect(reflect.ValueOf(model))
+	modelType := object.Type()
 	idIndex := -1
 	if len(opts) > 0 && opts[0] >= 0 {
 		idIndex = opts[0]
@@ -368,7 +371,7 @@ func UpdateOne(ctx context.Context, es *elasticsearch.Client, indexName string, 
 		return 0, errors.New("missing document ID in the object")
 	}
 	modelValue := reflect.ValueOf(model)
-	idValue := modelValue.Field(idIndex).String()
+	idValue := modelValue.Elem().Field(idIndex).String()
 	// body := BuildQueryWithoutIdFromObject(model)
 
 	query := map[string]interface{}{

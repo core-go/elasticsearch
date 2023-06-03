@@ -28,15 +28,14 @@ func NewInserter(client *es.Client, indexName string, modelType reflect.Type, op
 }
 
 func (w *Inserter) Write(ctx context.Context, model interface{}) error {
-	modelType := reflect.TypeOf(model)
 	if w.Map != nil {
 		m2, er0 := w.Map(ctx, model)
 		if er0 != nil {
 			return er0
 		}
-		_, er1 := InsertOne(ctx, w.client, w.indexName, m2, modelType)
+		_, er1 := InsertOne(ctx, w.client, w.indexName, m2)
 		return er1
 	}
-	_, er2 := InsertOne(ctx, w.client, w.indexName, model, modelType)
+	_, er2 := InsertOne(ctx, w.client, w.indexName, model)
 	return er2
 }

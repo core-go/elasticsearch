@@ -46,6 +46,7 @@ func BuildSearchResult(ctx context.Context, db *elasticsearch.Client, results in
 			listResults := make([]interface{}, 0)
 			for _, hit := range hits {
 				r := hit.(map[string]interface{})["_source"]
+				r.(map[string]interface{})["id"] = hit.(map[string]interface{})["_id"]
 				stValue := reflect.New(modelType).Elem()
 				for i := 0; i < modelType.NumField(); i++ {
 					field := modelType.Field(i)
