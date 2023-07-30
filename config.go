@@ -2,7 +2,7 @@ package elasticsearch
 
 import (
 	"crypto/tls"
-	"github.com/elastic/go-elasticsearch/v7"
+	"github.com/elastic/go-elasticsearch/v8"
 	"net"
 	"net/http"
 	"time"

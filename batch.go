@@ -3,8 +3,8 @@ package elasticsearch
 import (
 	"context"
 	"errors"
-	"github.com/elastic/go-elasticsearch/v7"
-	"github.com/elastic/go-elasticsearch/v7/esutil"
+	"github.com/elastic/go-elasticsearch/v8"
+	"github.com/elastic/go-elasticsearch/v8/esutil"
 	"reflect"
 )
 

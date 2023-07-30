@@ -4,7 +4,7 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/elastic/go-elasticsearch/v7"
+	"github.com/elastic/go-elasticsearch/v8"
 )
 
 type SearchQuery struct {
