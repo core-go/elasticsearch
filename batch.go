@@ -2,10 +2,12 @@ package elasticsearch
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esutil"
 	"reflect"
+	"strings"
 )
 
 type BatchInserter struct {
@@ -38,10 +40,14 @@ func (w *BatchInserter) Write(ctx context.Context, model interface{}) ([]int, []
 				idValue := modelValue.Field(idIndex).String()
 				if idValue != "" {
 					body := BuildQueryWithoutIdFromObject(sliceValue)
+					jsonBody, err := json.Marshal(body)
+					if err != nil {
+						return successIndices, failureIndices, err
+					}
 					er1 := bi.Add(context.Background(), esutil.BulkIndexerItem{
 						Action:     "create",
 						DocumentID: idValue,
-						Body:       esutil.NewJSONReader(body),
+						Body:       strings.NewReader(string(jsonBody)), // esutil.NewJSONReader(body),
 						OnSuccess: func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem) {
 							successIds = append(successIds, res.DocumentID)
 						},
@@ -89,10 +95,14 @@ func InsertMany(ctx context.Context, es *elasticsearch.Client, indexName string,
 				idValue := modelValue.Field(idIndex).String()
 				if idValue != "" {
 					body := BuildQueryWithoutIdFromObject(sliceValue)
+					jsonBody, err := json.Marshal(body)
+					if err != nil {
+						return successIndices, failureIndices, err
+					}
 					er1 := bi.Add(context.Background(), esutil.BulkIndexerItem{
 						Action:     "create",
 						DocumentID: idValue,
-						Body:       esutil.NewJSONReader(body),
+						Body:       strings.NewReader(string(jsonBody)), // esutil.NewJSONReader(body),
 						OnSuccess: func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem) {
 							successIds = append(successIds, res.DocumentID)
 						},
@@ -140,10 +150,14 @@ func UpsertMany(ctx context.Context, es *elasticsearch.Client, indexName string,
 				idValue := modelValue.Field(idIndex).String()
 				if idValue != "" {
 					body := BuildQueryWithoutIdFromObject(sliceValue)
+					jsonBody, err := json.Marshal(body)
+					if err != nil {
+						return successIndices, failureIndices, err
+					}
 					er1 := bi.Add(context.Background(), esutil.BulkIndexerItem{
 						Action:     "index",
 						DocumentID: idValue,
-						Body:       esutil.NewJSONReader(body),
+						Body:       strings.NewReader(string(jsonBody)), // esutil.NewJSONReader(body),
 						OnSuccess: func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem) {
 							successIds = append(successIds, res.DocumentID)
 						},

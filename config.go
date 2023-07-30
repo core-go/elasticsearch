@@ -20,7 +20,7 @@ type Config struct {
 	CloudID               *string         `yaml:"cloud_id" mapstructure:"cloud_id" json:"cloudID,omitempty" gorm:"column:cloudid" bson:"cloudID,omitempty" dynamodbav:"cloudID,omitempty" firestore:"cloudID,omitempty"`
 	APIKey                *string         `yaml:"api_key" mapstructure:"api_key" json:"apiKey,omitempty" gorm:"column:apikey" bson:"apiKey,omitempty" dynamodbav:"apiKey,omitempty" firestore:"apiKey,omitempty"`
 	DisableRetry          *bool           `yaml:"disable_retry" mapstructure:"disable_retry" json:"disableRetry,omitempty" gorm:"column:disableretry" bson:"disableRetry,omitempty" dynamodbav:"disableRetry,omitempty" firestore:"disableRetry,omitempty"`
-	EnableRetryOnTimeout  *bool           `yaml:"enable_retry_on_timeout" mapstructure:"enable_retry_on_timeout" json:"enableRetryOnTimeout,omitempty" gorm:"column:enableretryontimeout" bson:"enableRetryOnTimeout,omitempty" dynamodbav:"enableRetryOnTimeout,omitempty" firestore:"enableRetryOnTimeout,omitempty"`
+	// EnableRetryOnTimeout  *bool           `yaml:"enable_retry_on_timeout" mapstructure:"enable_retry_on_timeout" json:"enableRetryOnTimeout,omitempty" gorm:"column:enableretryontimeout" bson:"enableRetryOnTimeout,omitempty" dynamodbav:"enableRetryOnTimeout,omitempty" firestore:"enableRetryOnTimeout,omitempty"`
 	MaxRetries            *int            `yaml:"max_retries" mapstructure:"max_retries" json:"maxRetries,omitempty" gorm:"column:maxretries" bson:"maxRetries,omitempty" dynamodbav:"maxRetries,omitempty" firestore:"maxRetries,omitempty"`
 	DiscoverNodesOnStart  *bool           `yaml:"discover_nodes_on_start" mapstructure:"discover_nodes_on_start" json:"discoverNodesOnStart,omitempty" gorm:"column:discovernodesonstart" bson:"discoverNodesOnStart,omitempty" dynamodbav:"discoverNodesOnStart,omitempty" firestore:"discoverNodesOnStart,omitempty"`
 	DiscoverNodesInterval *int64          `yaml:"discover_nodes_interval" mapstructure:"discover_nodes_interval" json:"discoverNodesInterval,omitempty" gorm:"column:discovernodesinterval" bson:"discoverNodesInterval,omitempty" dynamodbav:"discoverNodesInterval,omitempty" firestore:"discoverNodesInterval,omitempty"`
@@ -68,9 +68,11 @@ func GetConfig(conf Config, timeouts ...time.Duration) elasticsearch.Config {
 	if conf.DisableRetry != nil {
 		c.DisableRetry = *conf.DisableRetry
 	}
+	/*
 	if conf.EnableRetryOnTimeout != nil {
 		c.EnableRetryOnTimeout = *conf.EnableRetryOnTimeout
 	}
+	 */
 	if conf.MaxRetries != nil {
 		c.MaxRetries = *conf.MaxRetries
 	}
