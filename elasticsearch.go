@@ -246,7 +246,8 @@ func FindAndDecode(ctx context.Context, es *elasticsearch.Client, indexName []st
 		return false, err
 	}
 	defer res.Body.Close()
-
+	
+	modelType := reflect.TypeOf(result).Elem().Elem()
 	if res.IsError() {
 		return false, errors.New("response error")
 	} else {
@@ -255,7 +256,22 @@ func FindAndDecode(ctx context.Context, es *elasticsearch.Client, indexName []st
 			return false, err
 		} else {
 			hits := r["hits"].(map[string]interface{})["hits"].([]interface{})
-			if err := json.NewDecoder(esutil.NewJSONReader(hits)).Decode(&result); err != nil {
+			listResults := make([]interface{}, 0)
+			for _, hit := range hits {
+				r := hit.(map[string]interface{})["_source"]
+				r.(map[string]interface{})["id"] = hit.(map[string]interface{})["_id"]
+				stValue := reflect.New(modelType).Elem()
+				for i := 0; i < modelType.NumField(); i++ {
+					field := modelType.Field(i)
+					if value, ok := r.(map[string]interface{})[field.Name]; ok {
+						stValue.Field(i).Set(reflect.ValueOf(value))
+					}
+				}
+				listResults = append(listResults, r)
+			}
+			
+			err := json.NewDecoder(esutil.NewJSONReader(listResults)).Decode(result)
+			if  err != nil {
 				return false, err
 			}
 			return true, nil

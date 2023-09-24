@@ -29,7 +29,7 @@ func NewSearchQuery(client *elasticsearch.Client, indexName string, modelType re
 func (b *SearchQuery) Search(ctx context.Context, sm interface{}, results interface{}, pageSize int64, skip int64) (int64, error) {
 	query := b.BuildQuery(sm)
 	s := b.GetSort(sm)
-	sort := BuildSort(s)
+	sort := BuildSort(s, b.ModelType)
 	total, err := BuildSearchResult(ctx, b.Client, results, b.IndexName, query, sort, pageSize, skip, b.ModelType, b.Map)
 	return total, err
 }
