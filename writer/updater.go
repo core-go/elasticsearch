@@ -1,4 +1,4 @@
-package elasticsearch
+package writer
 
 import (
 	"context"

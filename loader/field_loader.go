@@ -1,4 +1,4 @@
-package elasticsearch
+package loader
 
 import (
 	"context"

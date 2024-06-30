@@ -1,4 +1,4 @@
-package elasticsearch
+package health
 
 import (
 	"context"

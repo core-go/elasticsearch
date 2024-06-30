@@ -1,8 +1,9 @@
-package elasticsearch
+package passcode
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
@@ -78,4 +79,52 @@ func (p *PasscodeRepository) Load(ctx context.Context, id string) (string, time.
 
 func (p *PasscodeRepository) Delete(ctx context.Context, id string) (int64, error) {
 	return DeleteOne(ctx, p.client, p.indexName, id)
+}
+
+func FindOneByIdAndDecode(ctx context.Context, es *elasticsearch.Client, indexName string, documentID string, result interface{}) (bool, error) {
+	req := esapi.GetRequest{
+		Index:      indexName,
+		DocumentID: documentID,
+	}
+	res, err := req.Do(ctx, es)
+	if err != nil {
+		return false, err
+	}
+	defer res.Body.Close()
+
+	if !res.IsError() {
+		var r map[string]interface{}
+		if err := json.NewDecoder(res.Body).Decode(&r); err == nil {
+			hit := r["_source"].(map[string]interface{})
+			hit["id"] = r["_id"]
+			if err := json.NewDecoder(esutil.NewJSONReader(hit)).Decode(&result); err != nil {
+				return false, err
+			}
+			return true, nil
+		}
+		return false, err
+	}
+	return false, errors.New("response error")
+}
+func DeleteOne(ctx context.Context, es *elasticsearch.Client, indexName string, documentID string) (int64, error) {
+	req := esapi.DeleteRequest{
+		Index:      indexName,
+		DocumentID: documentID,
+	}
+	res, err := req.Do(ctx, es)
+	if err != nil {
+		return -1, err
+	}
+	defer res.Body.Close()
+	if res.IsError() {
+		return -1, errors.New("document ID not exists in the index")
+	} else {
+		var r map[string]interface{}
+		if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
+			return -1, err
+		} else {
+			successful := int64(r["_shards"].(map[string]interface{})["successful"].(float64))
+			return successful, nil
+		}
+	}
 }
