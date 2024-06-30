@@ -1,0 +1,51 @@
+package query
+
+import (
+	"context"
+	"fmt"
+	"reflect"
+
+	es "github.com/core-go/elasticsearch"
+	"github.com/elastic/go-elasticsearch/v8"
+)
+
+type SearchBuilder[T any, F any] struct {
+	Client     *elasticsearch.Client
+	Index      []string
+	BuildQuery func(F) map[string]interface{}
+	GetSort    func(interface{}) string
+	ModelType  reflect.Type
+	idJson     string
+	Map        func(*T)
+}
+
+func NewSearchBuilder[T any, F any](client *elasticsearch.Client, index []string, buildQuery func(F) map[string]interface{}, getSort func(m interface{}) string, opts ...func(*T)) *SearchBuilder[T, F] {
+	var t T
+	modelType := reflect.TypeOf(t)
+	if modelType.Kind() != reflect.Struct {
+		panic("T must be a struct")
+	}
+	idIndex, _, idJson := es.FindIdField(modelType)
+	if idIndex < 0 {
+		panic(fmt.Sprintf("%s struct requires id field which bson name is '_id'", modelType.Name()))
+	}
+	var mp func(*T)
+	if len(opts) > 0 && opts[0] != nil {
+		mp = opts[0]
+	}
+	return &SearchBuilder[T, F]{Client: client, Index: index, BuildQuery: buildQuery, GetSort: getSort, ModelType: modelType, idJson: idJson, Map: mp}
+}
+func (b *SearchBuilder[T, F]) Search(ctx context.Context, filter F, limit int64, offset int64) ([]T, int64, error) {
+	query := b.BuildQuery(filter)
+	s := b.GetSort(filter)
+	sort := es.BuildSort(s, b.ModelType)
+	var objs []T
+	total, err := es.BuildSearchResult(ctx, b.Client, b.Index, &objs, b.idJson, query, sort, limit, offset, b.ModelType)
+	if b.Map != nil {
+		l := len(objs)
+		for i := 0; i < l; i++ {
+			b.Map(&objs[i])
+		}
+	}
+	return objs, total, err
+}

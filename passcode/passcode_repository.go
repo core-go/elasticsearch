@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
 	"github.com/elastic/go-elasticsearch/v8/esutil"
-	"time"
 )
 
 type PasscodeRepository struct {
@@ -43,7 +44,7 @@ func (p *PasscodeRepository) Save(ctx context.Context, id string, passcode strin
 	pass := make(map[string]interface{})
 	pass[p.passcodeName] = passcode
 	pass[p.expiredAtName] = expiredAt
-	req := esapi.UpdateRequest{
+	req := esapi.IndexRequest{
 		Index:      p.indexName,
 		DocumentID: id,
 		Body:       esutil.NewJSONReader(pass),
@@ -70,7 +71,7 @@ func (p *PasscodeRepository) Save(ctx context.Context, id string, passcode strin
 
 func (p *PasscodeRepository) Load(ctx context.Context, id string) (string, time.Time, error) {
 	result := make(map[string]interface{})
-	ok, err := FindOneByIdAndDecode(ctx, p.client, p.indexName, id, &result)
+	ok, err := FindOne(ctx, p.client, p.indexName, id, &result)
 	if err != nil || !ok {
 		return "", time.Now(), err
 	}
@@ -78,10 +79,10 @@ func (p *PasscodeRepository) Load(ctx context.Context, id string) (string, time.
 }
 
 func (p *PasscodeRepository) Delete(ctx context.Context, id string) (int64, error) {
-	return DeleteOne(ctx, p.client, p.indexName, id)
+	return Delete(ctx, p.client, p.indexName, id)
 }
 
-func FindOneByIdAndDecode(ctx context.Context, es *elasticsearch.Client, indexName string, documentID string, result interface{}) (bool, error) {
+func FindOne(ctx context.Context, es *elasticsearch.Client, indexName string, documentID string, result interface{}) (bool, error) {
 	req := esapi.GetRequest{
 		Index:      indexName,
 		DocumentID: documentID,
@@ -96,7 +97,6 @@ func FindOneByIdAndDecode(ctx context.Context, es *elasticsearch.Client, indexNa
 		var r map[string]interface{}
 		if err := json.NewDecoder(res.Body).Decode(&r); err == nil {
 			hit := r["_source"].(map[string]interface{})
-			hit["id"] = r["_id"]
 			if err := json.NewDecoder(esutil.NewJSONReader(hit)).Decode(&result); err != nil {
 				return false, err
 			}
@@ -106,9 +106,9 @@ func FindOneByIdAndDecode(ctx context.Context, es *elasticsearch.Client, indexNa
 	}
 	return false, errors.New("response error")
 }
-func DeleteOne(ctx context.Context, es *elasticsearch.Client, indexName string, documentID string) (int64, error) {
+func Delete(ctx context.Context, es *elasticsearch.Client, index string, documentID string) (int64, error) {
 	req := esapi.DeleteRequest{
-		Index:      indexName,
+		Index:      index,
 		DocumentID: documentID,
 	}
 	res, err := req.Do(ctx, es)

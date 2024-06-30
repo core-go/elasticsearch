@@ -2,6 +2,7 @@ package elasticsearch
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 
 	"github.com/elastic/go-elasticsearch/v8"
@@ -9,45 +10,24 @@ import (
 
 type SearchBuilder struct {
 	Client     *elasticsearch.Client
-	IndexName  string
+	Index      []string
 	BuildQuery func(searchModel interface{}) map[string]interface{}
 	GetSort    func(m interface{}) string
 	ModelType  reflect.Type
+	idJson     string
 }
 
-func NewSearchBuilder(client *elasticsearch.Client, indexName string, modelType reflect.Type, buildQuery func(interface{}) map[string]interface{}, getSort func(m interface{}) string) *SearchBuilder {
-	return &SearchBuilder{Client: client, IndexName: indexName, BuildQuery: buildQuery, GetSort: getSort, ModelType: modelType}
+func NewSearchBuilder(client *elasticsearch.Client, index []string, modelType reflect.Type, buildQuery func(interface{}) map[string]interface{}, getSort func(m interface{}) string) *SearchBuilder {
+	idIndex, _, idJson := FindIdField(modelType)
+	if idIndex < 0 {
+		panic(fmt.Sprintf("%s struct requires id field which bson name is '_id'", modelType.Name()))
+	}
+	return &SearchBuilder{Client: client, Index: index, BuildQuery: buildQuery, GetSort: getSort, ModelType: modelType, idJson: idJson}
 }
-func (b *SearchBuilder) Search(ctx context.Context, sm interface{}, results interface{}, pageSize int64, skip int64) (int64, error) {
-	query := b.BuildQuery(sm)
-	s := b.GetSort(sm)
+func (b *SearchBuilder) Search(ctx context.Context, filter interface{}, results interface{}, limit int64, offset int64) (int64, error) {
+	query := b.BuildQuery(filter)
+	s := b.GetSort(filter)
 	sort := BuildSort(s, b.ModelType)
-	total, err := BuildSearchResult(ctx, b.Client, results, b.IndexName, query, sort, pageSize, skip, b.ModelType)
+	total, err := BuildSearchResult(ctx, b.Client, b.Index, results, b.idJson, query, sort, limit, offset, b.ModelType)
 	return total, err
-}
-
-func UpdateQuery(m map[string]interface{}) map[string]interface{} {
-	result := make(map[string]interface{})
-	result["query"] = map[string]interface{}{
-		"bool": map[string]interface{}{
-			"must": make([]map[string]interface{}, 0),
-		},
-	}
-	queryFields := make([]map[string]interface{}, 0)
-	for key, value := range m {
-		q := make(map[string]interface{})
-		if reflect.ValueOf(value).Kind() == reflect.Map {
-			q["range"] = make(map[string]interface{})
-			q["range"].(map[string]interface{})[key] = make(map[string]interface{})
-			for operator, val := range value.(map[string]interface{}) {
-				q["range"].(map[string]interface{})[key].(map[string]interface{})[operator[1:]] = val
-			}
-		} else {
-			q["prefix"] = make(map[string]interface{})
-			q["prefix"].(map[string]interface{})[key] = value
-		}
-		queryFields = append(queryFields, q)
-	}
-	result["query"].(map[string]interface{})["bool"].(map[string]interface{})["must"] = queryFields
-	return result
 }

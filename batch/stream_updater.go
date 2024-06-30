@@ -1,7 +1,8 @@
-package writer
+package batch
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 
@@ -9,19 +10,21 @@ import (
 	"github.com/elastic/go-elasticsearch/v8"
 )
 
-type Updater[T any] struct {
+type StreamUpdater[T any] struct {
 	client    *elasticsearch.Client
 	index     string
 	idx       int
 	Map       func(T)
 	isPointer bool
 	FieldMap  []es.FieldMap
+	batch     []Model
+	batchSize int
 }
 
-func NewUpdater[T any](client *elasticsearch.Client, index string, opts ...func(T)) *Updater[T] {
-	return NewUpdaterWithIdName[T](client, index, "", opts...)
+func NewStreamUpdater[T any](client *elasticsearch.Client, index string, opts ...func(T)) *StreamUpdater[T] {
+	return NewStreamUpdaterWithIdName[T](client, index, "", opts...)
 }
-func NewUpdaterWithIdName[T any](client *elasticsearch.Client, index string, idFieldName string, opts ...func(T)) *Updater[T] {
+func NewStreamUpdaterWithIdName[T any](client *elasticsearch.Client, index string, idFieldName string, opts ...func(T)) *StreamUpdater[T] {
 	var t T
 	modelType := reflect.TypeOf(t)
 	isPointer := false
@@ -52,17 +55,32 @@ func NewUpdaterWithIdName[T any](client *elasticsearch.Client, index string, idF
 	if len(opts) >= 1 {
 		mp = opts[0]
 	}
-	return &Updater[T]{client: client, index: index, idx: idx, Map: mp, isPointer: isPointer}
+	return &StreamUpdater[T]{client: client, index: index, idx: idx, Map: mp, isPointer: isPointer}
 }
-func (w *Updater[T]) Write(ctx context.Context, model T) error {
+func (w *StreamUpdater[T]) Write(ctx context.Context, obj T) error {
 	if w.Map != nil {
-		w.Map(model)
+		w.Map(obj)
 	}
-	vo := reflect.ValueOf(model)
+	vo := reflect.ValueOf(obj)
 	if w.isPointer {
 		vo = reflect.Indirect(vo)
 	}
 	id := vo.Field(w.idx).Interface().(string)
-	_, err := es.Update(ctx, w.client, w.index, es.BuildBody(model, w.FieldMap), id)
+	body := es.BuildBody(obj, w.FieldMap)
+	model := Model{Id: id, Body: body}
+	data, err := json.Marshal(model.Body)
+	if err != nil {
+		return err
+	}
+	model.Data = string(data)
+	w.batch = append(w.batch, model)
+	if len(w.batch) >= w.batchSize {
+		return w.Flush(ctx)
+	}
+	return nil
+}
+func (w *StreamUpdater[T]) Flush(ctx context.Context) error {
+	_, err := UpdateBatch(ctx, w.client, w.index, w.batch)
+	w.batch = make([]Model, 0)
 	return err
 }

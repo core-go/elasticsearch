@@ -3,262 +3,137 @@ package batch
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"github.com/elastic/go-elasticsearch/v8"
-	"github.com/elastic/go-elasticsearch/v8/esutil"
 	"reflect"
 	"strings"
+
+	es "github.com/core-go/elasticsearch"
+	"github.com/elastic/go-elasticsearch/v8"
+	"github.com/elastic/go-elasticsearch/v8/esutil"
 )
 
-type BatchInserter struct {
-	Es        *elasticsearch.Client
-	IndexName string
-	ModelType reflect.Type
+type Model struct {
+	Id   string                 `yaml:"id" mapstructure:"id" json:"id" gorm:"column:id;primary_key" bson:"_id" dynamodbav:"id" firestore:"-" avro:"id"`
+	Body map[string]interface{} `yaml:"body" mapstructure:"body" json:"body" gorm:"column:body" bson:"body" dynamodbav:"body" firestore:"body" avro:"body"`
+	Data string                 `yaml:"data" mapstructure:"data" json:"data" gorm:"column:data" bson:"data" dynamodbav:"data" firestore:"data" avro:"data"`
 }
 
-func NewBatchInserter(es *elasticsearch.Client, indexName string, modelType reflect.Type, options ...func(context.Context, interface{}) (interface{}, error)) *BatchInserter {
-	return &BatchInserter{Es: es, IndexName: indexName, ModelType: modelType}
-}
-
-func (w *BatchInserter) Write(ctx context.Context, model interface{}) ([]int, []int, error) {
-	value := reflect.Indirect(reflect.ValueOf(model))
-	var failureIndex, successIndices, failureIndices []int
-	if value.Kind() == reflect.Slice && value.Len() > 0 {
-		bi, err := esutil.NewBulkIndexer(esutil.BulkIndexerConfig{
-			Index:  w.IndexName,
-			Client: w.Es,
-		})
+func BuildModels[T any](objs []T, idx int, FieldMap []es.FieldMap) ([]Model, error) {
+	models := make([]Model, 0)
+	le := len(objs)
+	if le <= 0 {
+		return models, nil
+	}
+	for i := 0; i < le; i++ {
+		obj := objs[i]
+		vo := reflect.ValueOf(obj)
+		if vo.Kind() == reflect.Ptr {
+			vo = reflect.Indirect(vo)
+		}
+		id := vo.Field(idx).Interface().(string)
+		body := es.BuildBody(obj, FieldMap)
+		model := Model{Id: id, Body: body}
+		data, err := json.Marshal(model.Body)
 		if err != nil {
-			return successIndices, failureIndices, err
+			return nil, err
 		}
-		listIds := FindListIdField(w.ModelType, model)
-		var successIds, failIds []interface{}
-		for i := 0; i < value.Len(); i++ {
-			sliceValue := value.Index(i).Interface()
-			if idIndex, _, _ := FindIdField(w.ModelType); idIndex >= 0 {
-				modelValue := reflect.Indirect(reflect.ValueOf(sliceValue))
-				idValue := modelValue.Field(idIndex).String()
-				if idValue != "" {
-					body := BuildQueryWithoutIdFromObject(sliceValue)
-					jsonBody, err := json.Marshal(body)
-					if err != nil {
-						return successIndices, failureIndices, err
-					}
-					er1 := bi.Add(context.Background(), esutil.BulkIndexerItem{
-						Action:     "create",
-						DocumentID: idValue,
-						Body:       strings.NewReader(string(jsonBody)), // esutil.NewJSONReader(body),
-						OnSuccess: func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem) {
-							successIds = append(successIds, res.DocumentID)
-						},
-						OnFailure: func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem, err error) {
-							failIds = append(failIds, res.DocumentID)
-						},
-					})
-					if er1 != nil {
-						failureIndex = append(failureIndex, int(i))
-					}
-				} else {
-					failureIndex = append(failureIndex, int(i))
-				}
-			} else {
-				failureIndex = append(failureIndex, int(i))
-			}
-		}
-		if er2 := bi.Close(context.Background()); er2 != nil {
-			return successIndices, failureIndices, er2
-		}
-		successIndices, failureIndices = BuildIndicesResult(listIds, successIds, failIds)
-		failureIndices = append(failureIndices, failureIndex...)
-		return successIndices, failureIndices, nil
+		model.Data = string(data)
+		models = append(models, model)
 	}
-	return successIndices, failureIndices, errors.New("invalid input")
-}
-func FindIdField(modelType reflect.Type) (int, string, string) {
-	return FindBsonField(modelType, "_id")
-}
-func FindBsonField(modelType reflect.Type, bsonName string) (int, string, string) {
-	numField := modelType.NumField()
-	for i := 0; i < numField; i++ {
-		field := modelType.Field(i)
-		bsonTag := field.Tag.Get("bson")
-		tags := strings.Split(bsonTag, ",")
-		json := field.Name
-		if tag1, ok1 := field.Tag.Lookup("json"); ok1 {
-			json = strings.Split(tag1, ",")[0]
-		}
-		for _, tag := range tags {
-			if strings.TrimSpace(tag) == bsonName {
-				return i, field.Name, json
-			}
-		}
-	}
-	return -1, "", ""
+	return models, nil
 }
 
-func BuildQueryWithoutIdFromObject(object interface{}) map[string]interface{} {
-	valueOf := reflect.Indirect(reflect.ValueOf(object))
-	idIndex, _, _ := FindIdField(valueOf.Type())
-	result := map[string]interface{}{}
-	for i := 0; i < valueOf.NumField(); i++ {
-		if i != idIndex {
-			_, jsonName := FindFieldByIndex(valueOf.Type(), i)
-			result[jsonName] = valueOf.Field(i).Interface()
-		}
+func CreateBatch(ctx context.Context, client *elasticsearch.Client, index string, objs []Model) ([]int, error) {
+	failIndices := make([]int, 0)
+	indexer, er0 := esutil.NewBulkIndexer(esutil.BulkIndexerConfig{
+		Index:  index,
+		Client: client,
+	})
+	if er0 != nil {
+		return nil, er0
 	}
-	return result
-}
-func FindFieldByIndex(modelType reflect.Type, fieldIndex int) (fieldName, jsonTagName string) {
-	if fieldIndex < modelType.NumField() {
-		field := modelType.Field(fieldIndex)
-		jsonTagName := ""
-		if jsonTag, ok := field.Tag.Lookup("json"); ok {
-			jsonTagName = strings.Split(jsonTag, ",")[0]
-		}
-		return field.Name, jsonTagName
-	}
-	return "", ""
-}
-
-func BuildIndicesResult(listIds, successIds, failIds []interface{}) (successIndices, failureIndices []int) {
-	if len(listIds) > 0 {
-		for _, idValue := range listIds {
-			for index, id := range successIds {
-				if id == idValue {
-					successIndices = append(successIndices, int(index))
-				}
-			}
-			for index, id := range failIds {
-				if id == idValue {
-					failureIndices = append(failureIndices, int(index))
-				}
-			}
-		}
-	}
-	return
-}
-
-func InsertMany(ctx context.Context, es *elasticsearch.Client, indexName string, modelType reflect.Type, model interface{}) ([]int, []int, error) {
-	value := reflect.Indirect(reflect.ValueOf(model))
-	var failureIndex, successIndices, failureIndices []int
-	if value.Kind() == reflect.Slice && value.Len() > 0 {
-		bi, err := esutil.NewBulkIndexer(esutil.BulkIndexerConfig{
-			Index:  indexName,
-			Client: es,
+	le := len(objs)
+	for i := 0; i < le; i++ {
+		obj := objs[i]
+		isAdded := false
+		er1 := indexer.Add(context.Background(), esutil.BulkIndexerItem{
+			Action:     "create",
+			DocumentID: obj.Id,
+			Body:       strings.NewReader(obj.Data),
+			OnFailure: func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem, err error) {
+				failIndices = append(failIndices, i)
+				isAdded = true
+			},
 		})
-		if err != nil {
-			return successIndices, failureIndices, err
-		}
-		listIds := FindListIdField(modelType, model)
-		var successIds, failIds []interface{}
-		for i := 0; i < value.Len(); i++ {
-			sliceValue := value.Index(i).Interface()
-			if idIndex, _, _ := FindIdField(modelType); idIndex >= 0 {
-				modelValue := reflect.Indirect(reflect.ValueOf(sliceValue))
-				idValue := modelValue.Field(idIndex).String()
-				if idValue != "" {
-					body := BuildQueryWithoutIdFromObject(sliceValue)
-					jsonBody, err := json.Marshal(body)
-					if err != nil {
-						return successIndices, failureIndices, err
-					}
-					er1 := bi.Add(context.Background(), esutil.BulkIndexerItem{
-						Action:     "create",
-						DocumentID: idValue,
-						Body:       strings.NewReader(string(jsonBody)), // esutil.NewJSONReader(body),
-						OnSuccess: func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem) {
-							successIds = append(successIds, res.DocumentID)
-						},
-						OnFailure: func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem, err error) {
-							failIds = append(failIds, res.DocumentID)
-						},
-					})
-					if er1 != nil {
-						failureIndex = append(failureIndex, i)
-					}
-				} else {
-					failureIndex = append(failureIndex, i)
-				}
-			} else {
-				failureIndex = append(failureIndex, i)
+		if er1 != nil {
+			if !isAdded {
+				failIndices = append(failIndices, i)
 			}
 		}
-		if er2 := bi.Close(context.Background()); er2 != nil {
-			return successIndices, failureIndices, er2
-		}
-		successIndices, failureIndices = BuildIndicesResult(listIds, successIds, failIds)
-		failureIndices = append(failureIndices, failureIndex...)
-		return successIndices, failureIndices, nil
 	}
-	return successIndices, failureIndices, errors.New("invalid input")
+	er2 := indexer.Close(ctx)
+	return failIndices, er2
 }
 
-func UpsertMany(ctx context.Context, es *elasticsearch.Client, indexName string, modelType reflect.Type, model interface{}) ([]int, []int, error) {
-	value := reflect.Indirect(reflect.ValueOf(model))
-	var failureIndex, successIndices, failureIndices []int
-	if value.Kind() == reflect.Slice && value.Len() > 0 {
-		bi, err := esutil.NewBulkIndexer(esutil.BulkIndexerConfig{
-			Index:  indexName,
-			Client: es,
+func UpdateBatch(ctx context.Context, client *elasticsearch.Client, index string, objs []Model) ([]int, error) {
+	failIndices := make([]int, 0)
+	indexer, er0 := esutil.NewBulkIndexer(esutil.BulkIndexerConfig{
+		Index:  index,
+		Client: client,
+	})
+	if er0 != nil {
+		return nil, er0
+	}
+	le := len(objs)
+	for i := 0; i < le; i++ {
+		obj := objs[i]
+		isAdded := false
+		er1 := indexer.Add(context.Background(), esutil.BulkIndexerItem{
+			Action:     "index",
+			DocumentID: obj.Id,
+			Body:       strings.NewReader(obj.Data),
+			OnFailure: func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem, err error) {
+				failIndices = append(failIndices, i)
+				isAdded = true
+			},
 		})
-		if err != nil {
-			return successIndices, failureIndices, err
-		}
-		listIds := FindListIdField(modelType, model)
-		var successIds, failIds []interface{}
-		for i := 0; i < value.Len(); i++ {
-			sliceValue := value.Index(i).Interface()
-			if idIndex, _, _ := FindIdField(modelType); idIndex >= 0 {
-				modelValue := reflect.Indirect(reflect.ValueOf(sliceValue))
-				idValue := modelValue.Field(idIndex).String()
-				if idValue != "" {
-					body := BuildQueryWithoutIdFromObject(sliceValue)
-					jsonBody, err := json.Marshal(body)
-					if err != nil {
-						return successIndices, failureIndices, err
-					}
-					er1 := bi.Add(context.Background(), esutil.BulkIndexerItem{
-						Action:     "index",
-						DocumentID: idValue,
-						Body:       strings.NewReader(string(jsonBody)), // esutil.NewJSONReader(body),
-						OnSuccess: func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem) {
-							successIds = append(successIds, res.DocumentID)
-						},
-						OnFailure: func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem, err error) {
-							failIds = append(failIds, res.DocumentID)
-						},
-					})
-					if er1 != nil {
-						failureIndex = append(failureIndex, i)
-					}
-				} else {
-					failureIndex = append(failureIndex, i)
-				}
-			} else {
-				failureIndex = append(failureIndex, i)
+		if er1 != nil {
+			if !isAdded {
+				failIndices = append(failIndices, i)
 			}
 		}
-		if er2 := bi.Close(context.Background()); er2 != nil {
-			return successIndices, failureIndices, er2
-		}
-		successIndices, failureIndices = BuildIndicesResult(listIds, successIds, failIds)
-		failureIndices = append(failureIndices, failureIndex...)
-		return successIndices, failureIndices, nil
 	}
-	return successIndices, failureIndices, errors.New("invalid input")
+	er2 := indexer.Close(ctx)
+	return failIndices, er2
 }
-func FindListIdField(modelType reflect.Type, model interface{}) (listIdS []interface{}) {
-	value := reflect.Indirect(reflect.ValueOf(model))
 
-	if value.Kind() == reflect.Slice {
-		for i := 0; i < value.Len(); i++ {
-			sliceValue := value.Index(i).Interface()
-			if idIndex, _, _ := FindIdField(modelType); idIndex >= 0 {
-				modelValue := reflect.Indirect(reflect.ValueOf(sliceValue))
-				idValue := modelValue.Field(idIndex).String()
-				listIdS = append(listIdS, idValue)
+func SaveBatch(ctx context.Context, client *elasticsearch.Client, index string, objs []Model) ([]int, error) {
+	failIndices := make([]int, 0)
+	indexer, er0 := esutil.NewBulkIndexer(esutil.BulkIndexerConfig{
+		Index:  index,
+		Client: client,
+	})
+	if er0 != nil {
+		return nil, er0
+	}
+	le := len(objs)
+	for i := 0; i < le; i++ {
+		obj := objs[i]
+		isAdded := false
+		er1 := indexer.Add(context.Background(), esutil.BulkIndexerItem{
+			Action:     "index",
+			DocumentID: obj.Id,
+			Body:       strings.NewReader(obj.Data),
+			OnFailure: func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem, err error) {
+				failIndices = append(failIndices, i)
+				isAdded = true
+			},
+		})
+		if er1 != nil {
+			if !isAdded {
+				failIndices = append(failIndices, i)
 			}
 		}
 	}
-	return
+	er2 := indexer.Close(ctx)
+	return failIndices, er2
 }

@@ -4,20 +4,22 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"reflect"
+	"strings"
+
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
 	"github.com/elastic/go-elasticsearch/v8/esutil"
-	"reflect"
-	"strings"
 )
 
-func BuildSearchResult(ctx context.Context, db *elasticsearch.Client, results interface{}, indexName string, query map[string]interface{}, sort []map[string]interface{}, limit int64, offset int64, modelType reflect.Type) (int64, error) {
+func BuildSearchResult(ctx context.Context, db *elasticsearch.Client, index []string, results interface{}, jsonName string, query map[string]interface{}, sort []map[string]interface{}, limit int64, offset int64, modelType reflect.Type) (int64, error) {
 	from := int(offset)
 	size := int(limit)
 	fullQuery := UpdateQuery(query)
 	fullQuery["sort"] = sort
 	req := esapi.SearchRequest{
-		Index: []string{indexName},
+		// Index: []string{indexName},
+		Index: index,
 		Body:  esutil.NewJSONReader(fullQuery),
 		From:  &from,
 		Size:  &size,
@@ -36,20 +38,16 @@ func BuildSearchResult(ctx context.Context, db *elasticsearch.Client, results in
 		if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
 			return 0, err
 		} else {
-			hits := r["hits"].(map[string]interface{})["hits"].([]interface{})
-			count = int64(r["hits"].(map[string]interface{})["total"].(map[string]interface{})["value"].(float64))
+			hitsObj := r["hits"].(map[string]interface{})
+			hits := hitsObj["hits"].([]interface{})
+			count = int64(hitsObj["total"].(map[string]interface{})["value"].(float64))
 			listResults := make([]interface{}, 0)
-			idField := modelType.Field(0)
-			jsonID := idField.Tag.Get("json")
 			for _, hit := range hits {
-				r := hit.(map[string]interface{})["_source"]
-				r.(map[string]interface{})[jsonID] = hit.(map[string]interface{})["_id"]
-				stValue := reflect.New(modelType).Elem()
-				for i := 0; i < modelType.NumField(); i++ {
-					field := modelType.Field(i)
-					if value, ok := r.(map[string]interface{})[field.Name]; ok {
-						stValue.Field(i).Set(reflect.ValueOf(value))
-					}
+				hitObj := hit.(map[string]interface{})
+				r := hitObj["_source"]
+				rs := r.(map[string]interface{})
+				if len(jsonName) > 0 {
+					rs[jsonName] = hitObj["_id"]
 				}
 				listResults = append(listResults, r)
 			}
@@ -62,7 +60,31 @@ func BuildSearchResult(ctx context.Context, db *elasticsearch.Client, results in
 		}
 	}
 }
-
+func UpdateQuery(m map[string]interface{}) map[string]interface{} {
+	result := make(map[string]interface{})
+	result["query"] = map[string]interface{}{
+		"bool": map[string]interface{}{
+			"must": make([]map[string]interface{}, 0),
+		},
+	}
+	queryFields := make([]map[string]interface{}, 0)
+	for key, value := range m {
+		q := make(map[string]interface{})
+		if reflect.ValueOf(value).Kind() == reflect.Map {
+			q["range"] = make(map[string]interface{})
+			q["range"].(map[string]interface{})[key] = make(map[string]interface{})
+			for operator, val := range value.(map[string]interface{}) {
+				q["range"].(map[string]interface{})[key].(map[string]interface{})[operator[1:]] = val
+			}
+		} else {
+			q["prefix"] = make(map[string]interface{})
+			q["prefix"].(map[string]interface{})[key] = value
+		}
+		queryFields = append(queryFields, q)
+	}
+	result["query"].(map[string]interface{})["bool"].(map[string]interface{})["must"] = queryFields
+	return result
+}
 func BuildSort(s string, modelType reflect.Type) []map[string]interface{} {
 	sort := []map[string]interface{}{}
 	if len(s) == 0 {

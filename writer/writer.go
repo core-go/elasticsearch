@@ -9,7 +9,7 @@ import (
 	"github.com/elastic/go-elasticsearch/v8"
 )
 
-type Updater[T any] struct {
+type Writer[T any] struct {
 	client    *elasticsearch.Client
 	index     string
 	idx       int
@@ -18,10 +18,10 @@ type Updater[T any] struct {
 	FieldMap  []es.FieldMap
 }
 
-func NewUpdater[T any](client *elasticsearch.Client, index string, opts ...func(T)) *Updater[T] {
-	return NewUpdaterWithIdName[T](client, index, "", opts...)
+func NewWriter[T any](client *elasticsearch.Client, index string, opts ...func(T)) *Writer[T] {
+	return NewWriterWithIdName[T](client, index, "", opts...)
 }
-func NewUpdaterWithIdName[T any](client *elasticsearch.Client, index string, idFieldName string, opts ...func(T)) *Updater[T] {
+func NewWriterWithIdName[T any](client *elasticsearch.Client, index string, idFieldName string, opts ...func(T)) *Writer[T] {
 	var t T
 	modelType := reflect.TypeOf(t)
 	isPointer := false
@@ -52,9 +52,9 @@ func NewUpdaterWithIdName[T any](client *elasticsearch.Client, index string, idF
 	if len(opts) >= 1 {
 		mp = opts[0]
 	}
-	return &Updater[T]{client: client, index: index, idx: idx, Map: mp, isPointer: isPointer}
+	return &Writer[T]{client: client, index: index, idx: idx, Map: mp, isPointer: isPointer}
 }
-func (w *Updater[T]) Write(ctx context.Context, model T) error {
+func (w *Writer[T]) Write(ctx context.Context, model T) error {
 	if w.Map != nil {
 		w.Map(model)
 	}
@@ -63,6 +63,6 @@ func (w *Updater[T]) Write(ctx context.Context, model T) error {
 		vo = reflect.Indirect(vo)
 	}
 	id := vo.Field(w.idx).Interface().(string)
-	_, err := es.Update(ctx, w.client, w.index, es.BuildBody(model, w.FieldMap), id)
+	_, err := es.Save(ctx, w.client, w.index, es.BuildBody(model, w.FieldMap), id)
 	return err
 }
