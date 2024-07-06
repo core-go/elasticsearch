@@ -88,12 +88,12 @@ func BuildBody(model interface{}, fields []FieldMap) map[string]interface{} {
 	return res
 }
 
-func Create(ctx context.Context, es *elasticsearch.Client, indexName string, model interface{}, id *string) (int64, error) {
+func Create(ctx context.Context, es *elasticsearch.Client, indexName string, model interface{}, id string) (int64, error) {
 	var req esapi.CreateRequest
-	if id != nil {
+	if len(id) > 0 {
 		req = esapi.CreateRequest{
 			Index:      indexName,
-			DocumentID: *id,
+			DocumentID: id,
 			Body:       esutil.NewJSONReader(model),
 			Refresh:    "true",
 		}
@@ -238,8 +238,7 @@ func Delete(ctx context.Context, es *elasticsearch.Client, index string, documen
 	}
 }
 
-func DeleteBatch(ctx context.Context, client *elasticsearch.Client, index string, ids []string) ([]int, error) {
-	failIndices := make([]int, 0)
+func DeleteBatch(ctx context.Context, client *elasticsearch.Client, index string, ids []string) ([]string, error) {
 	indexer, er0 := esutil.NewBulkIndexer(esutil.BulkIndexerConfig{
 		Index:  index,
 		Client: client,
@@ -247,23 +246,24 @@ func DeleteBatch(ctx context.Context, client *elasticsearch.Client, index string
 	if er0 != nil {
 		return nil, er0
 	}
+	var er2 error
+	failIds := make([]string, 0)
 	le := len(ids)
 	for i := 0; i < le; i++ {
-		isAdded := false
 		er1 := indexer.Add(context.Background(), esutil.BulkIndexerItem{
 			Action:     "delete",
 			DocumentID: ids[i],
 			OnFailure: func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem, err error) {
-				failIndices = append(failIndices, i)
-				isAdded = true
+				failIds = append(failIds, res.DocumentID)
 			},
 		})
-		if er1 != nil {
-			if !isAdded {
-				failIndices = append(failIndices, i)
-			}
+		if er1 != nil && er2 == nil {
+			er2 = er1
 		}
 	}
-	er2 := indexer.Close(ctx)
-	return failIndices, er2
+	er3 := indexer.Close(ctx)
+	if er3 != nil && er2 == nil {
+		er2 = er3
+	}
+	return failIds, er2
 }

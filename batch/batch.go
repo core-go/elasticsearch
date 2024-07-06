@@ -3,6 +3,7 @@ package batch
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"reflect"
 	"strings"
 
@@ -43,7 +44,7 @@ func BuildModels[T any](objs []T, idx int, FieldMap []es.FieldMap) ([]Model, err
 }
 
 func CreateBatch(ctx context.Context, client *elasticsearch.Client, index string, objs []Model) ([]int, error) {
-	failIndices := make([]int, 0)
+	fails := make([]int, 0)
 	indexer, er0 := esutil.NewBulkIndexer(esutil.BulkIndexerConfig{
 		Index:  index,
 		Client: client,
@@ -51,31 +52,41 @@ func CreateBatch(ctx context.Context, client *elasticsearch.Client, index string
 	if er0 != nil {
 		return nil, er0
 	}
+	var er2 error
+	failIds := make(map[string]string)
 	le := len(objs)
 	for i := 0; i < le; i++ {
 		obj := objs[i]
-		isAdded := false
 		er1 := indexer.Add(context.Background(), esutil.BulkIndexerItem{
 			Action:     "create",
 			DocumentID: obj.Id,
 			Body:       strings.NewReader(obj.Data),
 			OnFailure: func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem, err error) {
-				failIndices = append(failIndices, i)
-				isAdded = true
+				failIds[res.DocumentID] = res.DocumentID
+				if er2 == nil {
+					er2 = errors.New(res.Error.Reason)
+				}
 			},
 		})
-		if er1 != nil {
-			if !isAdded {
-				failIndices = append(failIndices, i)
-			}
+		if er1 != nil && er2 == nil {
+			er2 = er1
 		}
 	}
-	er2 := indexer.Close(ctx)
-	return failIndices, er2
+	er3 := indexer.Close(ctx)
+	if er3 != nil && er2 == nil {
+		er2 = er3
+	}
+	for i := 0; i < le; i++ {
+		_, ok := failIds[objs[i].Id]
+		if ok {
+			fails = append(fails, i)
+		}
+	}
+	return fails, er2
 }
 
 func UpdateBatch(ctx context.Context, client *elasticsearch.Client, index string, objs []Model) ([]int, error) {
-	failIndices := make([]int, 0)
+	fails := make([]int, 0)
 	indexer, er0 := esutil.NewBulkIndexer(esutil.BulkIndexerConfig{
 		Index:  index,
 		Client: client,
@@ -83,31 +94,41 @@ func UpdateBatch(ctx context.Context, client *elasticsearch.Client, index string
 	if er0 != nil {
 		return nil, er0
 	}
+	var er2 error
+	failIds := make(map[string]string)
 	le := len(objs)
 	for i := 0; i < le; i++ {
 		obj := objs[i]
-		isAdded := false
 		er1 := indexer.Add(context.Background(), esutil.BulkIndexerItem{
-			Action:     "index",
+			Action:     "update",
 			DocumentID: obj.Id,
 			Body:       strings.NewReader(obj.Data),
 			OnFailure: func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem, err error) {
-				failIndices = append(failIndices, i)
-				isAdded = true
+				failIds[res.DocumentID] = res.DocumentID
+				if er2 == nil {
+					er2 = errors.New(res.Error.Reason)
+				}
 			},
 		})
-		if er1 != nil {
-			if !isAdded {
-				failIndices = append(failIndices, i)
-			}
+		if er1 != nil && er2 == nil {
+			er2 = er1
 		}
 	}
-	er2 := indexer.Close(ctx)
-	return failIndices, er2
+	er3 := indexer.Close(ctx)
+	if er3 != nil && er2 == nil {
+		er2 = er3
+	}
+	for i := 0; i < le; i++ {
+		_, ok := failIds[objs[i].Id]
+		if ok {
+			fails = append(fails, i)
+		}
+	}
+	return fails, er2
 }
 
 func SaveBatch(ctx context.Context, client *elasticsearch.Client, index string, objs []Model) ([]int, error) {
-	failIndices := make([]int, 0)
+	fails := make([]int, 0)
 	indexer, er0 := esutil.NewBulkIndexer(esutil.BulkIndexerConfig{
 		Index:  index,
 		Client: client,
@@ -115,25 +136,35 @@ func SaveBatch(ctx context.Context, client *elasticsearch.Client, index string, 
 	if er0 != nil {
 		return nil, er0
 	}
+	var er2 error
+	failIds := make(map[string]string)
 	le := len(objs)
 	for i := 0; i < le; i++ {
 		obj := objs[i]
-		isAdded := false
 		er1 := indexer.Add(context.Background(), esutil.BulkIndexerItem{
 			Action:     "index",
 			DocumentID: obj.Id,
 			Body:       strings.NewReader(obj.Data),
 			OnFailure: func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem, err error) {
-				failIndices = append(failIndices, i)
-				isAdded = true
+				failIds[res.DocumentID] = res.DocumentID
+				if er2 == nil {
+					er2 = errors.New(res.Error.Reason)
+				}
 			},
 		})
-		if er1 != nil {
-			if !isAdded {
-				failIndices = append(failIndices, i)
-			}
+		if er1 != nil && er2 == nil {
+			er2 = er1
 		}
 	}
-	er2 := indexer.Close(ctx)
-	return failIndices, er2
+	er3 := indexer.Close(ctx)
+	if er3 != nil && er2 == nil {
+		er2 = er3
+	}
+	for i := 0; i < le; i++ {
+		_, ok := failIds[objs[i].Id]
+		if ok {
+			fails = append(fails, i)
+		}
+	}
+	return fails, er2
 }

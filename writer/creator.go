@@ -64,11 +64,6 @@ func (w *Creator[T]) Write(ctx context.Context, model T) error {
 	}
 	id := vo.Field(w.idx).Interface().(string)
 	body := es.BuildBody(model, w.FieldMap)
-	if len(id) == 0 {
-		_, err := es.Create(ctx, w.client, w.index, body, nil)
-		return err
-	} else {
-		_, err := es.Create(ctx, w.client, w.index, body, &id)
-		return err
-	}
+	_, err := es.Create(ctx, w.client, w.index, body, id)
+	return err
 }

@@ -68,11 +68,7 @@ func (a *Adapter[T]) Create(ctx context.Context, model *T) (int64, error) {
 	mv := reflect.Indirect(reflect.ValueOf(model))
 	id := mv.Field(a.idIndex).Interface().(string)
 	body := es.BuildBody(model, a.Map)
-	if len(id) == 0 {
-		return es.Create(ctx, a.Client, a.Index, body, nil)
-	} else {
-		return es.Create(ctx, a.Client, a.Index, body, &id)
-	}
+	return es.Create(ctx, a.Client, a.Index, body, id)
 }
 func (a *Adapter[T]) Update(ctx context.Context, model *T) (int64, error) {
 	mv := reflect.Indirect(reflect.ValueOf(model))

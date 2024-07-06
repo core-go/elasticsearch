@@ -72,9 +72,9 @@ func FindFieldByIndex(modelType reflect.Type, fieldIndex int) (fieldName, jsonTa
 	return "", ""
 }
 
-func Exist(ctx context.Context, es *elasticsearch.Client, indexName string, documentID string) (bool, error) {
+func Exist(ctx context.Context, es *elasticsearch.Client, index string, documentID string) (bool, error) {
 	req := esapi.ExistsRequest{
-		Index:      indexName,
+		Index:      index,
 		DocumentID: documentID,
 	}
 	res, err := req.Do(ctx, es)
@@ -94,13 +94,15 @@ func Exist(ctx context.Context, es *elasticsearch.Client, indexName string, docu
 		}
 	}
 }
-
-func FindOne(ctx context.Context, es *elasticsearch.Client, indexName string, documentID string, result interface{}, idJson string) (bool, error) {
+func FindOne(ctx context.Context, client *elasticsearch.Client, index string, documentID string, result interface{}, idJson string) (bool, error) {
+	return FindOneWithVersion(ctx, client, index, documentID, result, idJson, "")
+}
+func FindOneWithVersion(ctx context.Context, client *elasticsearch.Client, index string, documentID string, result interface{}, idJson string, versionJson string) (bool, error) {
 	req := esapi.GetRequest{
-		Index:      indexName,
+		Index:      index,
 		DocumentID: documentID,
 	}
-	res, err := req.Do(ctx, es)
+	res, err := req.Do(ctx, client)
 	if err != nil {
 		return false, err
 	}
@@ -113,6 +115,9 @@ func FindOne(ctx context.Context, es *elasticsearch.Client, indexName string, do
 			if len(idJson) > 0 {
 				hit[idJson] = r["_id"]
 			}
+			if len(versionJson) > 0 {
+				hit[versionJson] = r["_version"]
+			}
 			if err := json.NewDecoder(esutil.NewJSONReader(hit)).Decode(&result); err != nil {
 				return false, err
 			}
@@ -122,15 +127,17 @@ func FindOne(ctx context.Context, es *elasticsearch.Client, indexName string, do
 	}
 	return false, errors.New("response error")
 }
-
-func Find(ctx context.Context, es *elasticsearch.Client, indexName []string, query map[string]interface{}, result interface{}, idJson string) error {
+func Find(ctx context.Context, client *elasticsearch.Client, index []string, query map[string]interface{}, result interface{}, idJson string) error {
+	return FindWithVersion(ctx, client, index, query, result, idJson, "")
+}
+func FindWithVersion(ctx context.Context, client *elasticsearch.Client, index []string, query map[string]interface{}, result interface{}, idJson string, versionJson string) error {
 	req := esapi.SearchRequest{
-		Index:          indexName,
+		Index:          index,
 		Body:           esutil.NewJSONReader(query),
 		TrackTotalHits: true,
 		Pretty:         true,
 	}
-	res, err := req.Do(ctx, es)
+	res, err := req.Do(ctx, client)
 	if err != nil {
 		return err
 	}
@@ -151,6 +158,9 @@ func Find(ctx context.Context, es *elasticsearch.Client, indexName []string, que
 				rs := r.(map[string]interface{})
 				if len(idJson) > 0 {
 					rs[idJson] = hit["_id"]
+				}
+				if len(versionJson) > 0 {
+					hit[versionJson] = hit["_version"]
 				}
 				listResults = append(listResults, r)
 			}

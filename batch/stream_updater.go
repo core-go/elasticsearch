@@ -21,10 +21,10 @@ type StreamUpdater[T any] struct {
 	batchSize int
 }
 
-func NewStreamUpdater[T any](client *elasticsearch.Client, index string, opts ...func(T)) *StreamUpdater[T] {
-	return NewStreamUpdaterWithIdName[T](client, index, "", opts...)
+func NewStreamUpdater[T any](client *elasticsearch.Client, index string, batchSize int, opts ...func(T)) *StreamUpdater[T] {
+	return NewStreamUpdaterWithIdName[T](client, index, batchSize, "", opts...)
 }
-func NewStreamUpdaterWithIdName[T any](client *elasticsearch.Client, index string, idFieldName string, opts ...func(T)) *StreamUpdater[T] {
+func NewStreamUpdaterWithIdName[T any](client *elasticsearch.Client, index string, batchSize int, idFieldName string, opts ...func(T)) *StreamUpdater[T] {
 	var t T
 	modelType := reflect.TypeOf(t)
 	isPointer := false
@@ -55,7 +55,7 @@ func NewStreamUpdaterWithIdName[T any](client *elasticsearch.Client, index strin
 	if len(opts) >= 1 {
 		mp = opts[0]
 	}
-	return &StreamUpdater[T]{client: client, index: index, idx: idx, Map: mp, isPointer: isPointer}
+	return &StreamUpdater[T]{client: client, index: index, idx: idx, FieldMap: es.BuildMap(modelType), batch: make([]Model, 0), batchSize: batchSize, Map: mp, isPointer: isPointer}
 }
 func (w *StreamUpdater[T]) Write(ctx context.Context, obj T) error {
 	if w.Map != nil {

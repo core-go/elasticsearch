@@ -50,7 +50,7 @@ func NewBatchUpdaterWithIdName[T any](client *elasticsearch.Client, index string
 	if len(opts) >= 1 {
 		mp = opts[0]
 	}
-	return &BatchUpdater[T]{client: client, index: index, idx: idx, Map: mp, retryAll: retryAll}
+	return &BatchUpdater[T]{client: client, index: index, idx: idx, FieldMap: es.BuildMap(modelType), Map: mp, retryAll: retryAll}
 }
 func (w *BatchUpdater[T]) Write(ctx context.Context, objs []T) ([]int, error) {
 	le := len(objs)

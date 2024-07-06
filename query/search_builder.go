@@ -10,16 +10,20 @@ import (
 )
 
 type SearchBuilder[T any, F any] struct {
-	Client     *elasticsearch.Client
-	Index      []string
-	BuildQuery func(F) map[string]interface{}
-	GetSort    func(interface{}) string
-	ModelType  reflect.Type
-	idJson     string
-	Map        func(*T)
+	Client      *elasticsearch.Client
+	Index       []string
+	BuildQuery  func(F) map[string]interface{}
+	GetSort     func(interface{}) string
+	ModelType   reflect.Type
+	idJson      string
+	versionJson string
+	Map         func(*T)
 }
 
 func NewSearchBuilder[T any, F any](client *elasticsearch.Client, index []string, buildQuery func(F) map[string]interface{}, getSort func(m interface{}) string, opts ...func(*T)) *SearchBuilder[T, F] {
+	return NewSearchBuilderWithVersion[T, F](client, index, buildQuery, getSort, "", opts...)
+}
+func NewSearchBuilderWithVersion[T any, F any](client *elasticsearch.Client, index []string, buildQuery func(F) map[string]interface{}, getSort func(m interface{}) string, versionJson string, opts ...func(*T)) *SearchBuilder[T, F] {
 	var t T
 	modelType := reflect.TypeOf(t)
 	if modelType.Kind() != reflect.Struct {
@@ -33,14 +37,14 @@ func NewSearchBuilder[T any, F any](client *elasticsearch.Client, index []string
 	if len(opts) > 0 && opts[0] != nil {
 		mp = opts[0]
 	}
-	return &SearchBuilder[T, F]{Client: client, Index: index, BuildQuery: buildQuery, GetSort: getSort, ModelType: modelType, idJson: idJson, Map: mp}
+	return &SearchBuilder[T, F]{Client: client, Index: index, BuildQuery: buildQuery, GetSort: getSort, ModelType: modelType, idJson: idJson, versionJson: versionJson, Map: mp}
 }
 func (b *SearchBuilder[T, F]) Search(ctx context.Context, filter F, limit int64, offset int64) ([]T, int64, error) {
 	query := b.BuildQuery(filter)
 	s := b.GetSort(filter)
 	sort := es.BuildSort(s, b.ModelType)
 	var objs []T
-	total, err := es.BuildSearchResult(ctx, b.Client, b.Index, &objs, b.idJson, query, sort, limit, offset, b.ModelType)
+	total, err := es.BuildSearchResult(ctx, b.Client, b.Index, objs, b.idJson, query, sort, limit, offset, b.versionJson)
 	if b.Map != nil {
 		l := len(objs)
 		for i := 0; i < l; i++ {

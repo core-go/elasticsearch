@@ -12,7 +12,7 @@ import (
 	"github.com/elastic/go-elasticsearch/v8/esutil"
 )
 
-func BuildSearchResult(ctx context.Context, db *elasticsearch.Client, index []string, results interface{}, jsonName string, query map[string]interface{}, sort []map[string]interface{}, limit int64, offset int64, modelType reflect.Type) (int64, error) {
+func BuildSearchResult(ctx context.Context, db *elasticsearch.Client, index []string, results interface{}, jsonName string, query map[string]interface{}, sort []map[string]interface{}, limit int64, offset int64, version string) (int64, error) {
 	from := int(offset)
 	size := int(limit)
 	fullQuery := UpdateQuery(query)
@@ -48,6 +48,9 @@ func BuildSearchResult(ctx context.Context, db *elasticsearch.Client, index []st
 				rs := r.(map[string]interface{})
 				if len(jsonName) > 0 {
 					rs[jsonName] = hitObj["_id"]
+				}
+				if len(version) > 0 {
+					rs[version] = hitObj["_version"]
 				}
 				listResults = append(listResults, r)
 			}

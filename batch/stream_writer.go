@@ -21,10 +21,10 @@ type StreamWriter[T any] struct {
 	batchSize int
 }
 
-func NewStreamWriter[T any](client *elasticsearch.Client, index string, opts ...func(T)) *StreamWriter[T] {
-	return NewStreamWriterWithIdName[T](client, index, "", opts...)
+func NewStreamWriter[T any](client *elasticsearch.Client, index string, batchSize int, opts ...func(T)) *StreamWriter[T] {
+	return NewStreamWriterWithIdName[T](client, index, batchSize, "", opts...)
 }
-func NewStreamWriterWithIdName[T any](client *elasticsearch.Client, index string, idFieldName string, opts ...func(T)) *StreamWriter[T] {
+func NewStreamWriterWithIdName[T any](client *elasticsearch.Client, index string, batchSize int, idFieldName string, opts ...func(T)) *StreamWriter[T] {
 	var t T
 	modelType := reflect.TypeOf(t)
 	isPointer := false
@@ -55,7 +55,7 @@ func NewStreamWriterWithIdName[T any](client *elasticsearch.Client, index string
 	if len(opts) >= 1 {
 		mp = opts[0]
 	}
-	return &StreamWriter[T]{client: client, index: index, idx: idx, Map: mp, isPointer: isPointer}
+	return &StreamWriter[T]{client: client, index: index, idx: idx, FieldMap: es.BuildMap(modelType), batch: make([]Model, 0), batchSize: batchSize, Map: mp, isPointer: isPointer}
 }
 func (w *StreamWriter[T]) Write(ctx context.Context, obj T) error {
 	if w.Map != nil {

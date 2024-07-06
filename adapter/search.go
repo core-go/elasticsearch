@@ -35,7 +35,7 @@ func (b *SearchAdapter[T, F]) Search(ctx context.Context, filter F, limit int64,
 	s := b.GetSort(filter)
 	sort := es.BuildSort(s, b.ModelType)
 	var objs []T
-	total, err := es.BuildSearchResult(ctx, b.Client, []string{b.Index}, &objs, b.idJson, query, sort, limit, offset, b.ModelType)
+	total, err := es.BuildSearchResult(ctx, b.Client, []string{b.Index}, &objs, b.idJson, query, sort, limit, offset, "")
 	if b.Map != nil {
 		l := len(objs)
 		for i := 0; i < l; i++ {
