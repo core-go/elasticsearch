@@ -10,16 +10,16 @@ import (
 )
 
 type FieldLoader struct {
-	client    *elasticsearch.Client
-	indexName string
-	name      string
+	client *elasticsearch.Client
+	index  string
+	name   string
 }
 
-func NewFieldLoader(db *elasticsearch.Client, indexName, name string) *FieldLoader {
+func NewFieldLoader(db *elasticsearch.Client, index, name string) *FieldLoader {
 	return &FieldLoader{
-		client:    db,
-		indexName: indexName,
-		name:      name,
+		client: db,
+		index:  index,
+		name:   name,
 	}
 }
 
@@ -29,7 +29,7 @@ func (l *FieldLoader) Values(ctx context.Context, ids []string) ([]string, error
 	query["terms"] = map[string]interface{}{"_id": ids}
 	query["boost"] = 1.0
 	req := esapi.SearchRequest{
-		Index:          []string{l.indexName},
+		Index:          []string{l.index},
 		Body:           esutil.NewJSONReader(query),
 		TrackTotalHits: true,
 		Pretty:         true,

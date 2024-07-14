@@ -1,4 +1,4 @@
-package query
+package repository
 
 import (
 	"context"
@@ -32,10 +32,6 @@ func NewSearchBuilderWithVersion[T any, F any](client *elasticsearch.Client, ind
 	idIndex, _, idJson := es.FindIdField(modelType)
 	if idIndex < 0 {
 		panic(fmt.Sprintf("%s struct requires id field which bson name is '_id'", modelType.Name()))
-	}
-	idField := modelType.Field(idIndex)
-	if idField.Type.String() != "string" {
-		panic(fmt.Sprintf("%s type of %s struct must be string", modelType.Field(idIndex).Name, modelType.Name()))
 	}
 	var mp func(*T)
 	if len(opts) > 0 && opts[0] != nil {

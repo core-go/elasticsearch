@@ -43,10 +43,8 @@ func NewAdapterWithIdName[T any](client *elasticsearch.Client, index string, ver
 			panic(fmt.Sprintf("%s struct requires id field which id name is '%s'", modelType.Name(), idFieldName))
 		}
 	}
-	vo := reflect.Indirect(reflect.ValueOf(t))
-	id := vo.Field(idIndex).Interface()
-	_, ok := id.(string)
-	if !ok {
+	idField := modelType.Field(idIndex)
+	if idField.Type.String() != "string" {
 		panic(fmt.Sprintf("%s type of %s struct must be string", modelType.Field(idIndex).Name, modelType.Name()))
 	}
 	var mp func(*T)

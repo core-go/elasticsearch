@@ -18,7 +18,6 @@ func BuildSearchResult(ctx context.Context, db *elasticsearch.Client, index []st
 	fullQuery := UpdateQuery(query)
 	fullQuery["sort"] = sort
 	req := esapi.SearchRequest{
-		// Index: []string{indexName},
 		Index: index,
 		Body:  esutil.NewJSONReader(fullQuery),
 		From:  &from,

@@ -88,18 +88,18 @@ func BuildBody(model interface{}, fields []FieldMap) map[string]interface{} {
 	return res
 }
 
-func Create(ctx context.Context, es *elasticsearch.Client, indexName string, model interface{}, id string) (int64, error) {
+func Create(ctx context.Context, es *elasticsearch.Client, index string, model interface{}, id string) (int64, error) {
 	var req esapi.CreateRequest
 	if len(id) > 0 {
 		req = esapi.CreateRequest{
-			Index:      indexName,
+			Index:      index,
 			DocumentID: id,
 			Body:       esutil.NewJSONReader(model),
 			Refresh:    "true",
 		}
 	} else {
 		req = esapi.CreateRequest{
-			Index:   indexName,
+			Index:   index,
 			Body:    esutil.NewJSONReader(model),
 			Refresh: "true",
 		}
@@ -122,12 +122,12 @@ func Create(ctx context.Context, es *elasticsearch.Client, indexName string, mod
 	}
 }
 
-func Update(ctx context.Context, es *elasticsearch.Client, indexName string, model interface{}, id string) (int64, error) {
+func Update(ctx context.Context, es *elasticsearch.Client, index string, model interface{}, id string) (int64, error) {
 	query := map[string]interface{}{
 		"doc": model,
 	}
 	req := esapi.UpdateRequest{
-		Index:      indexName,
+		Index:      index,
 		DocumentID: id,
 		Body:       esutil.NewJSONReader(query),
 		Refresh:    "true",
@@ -150,13 +150,12 @@ func Update(ctx context.Context, es *elasticsearch.Client, indexName string, mod
 	}
 }
 
-func Save(ctx context.Context, es *elasticsearch.Client, indexName string, model interface{}, id string) (int64, error) {
-	// body := BuildQueryWithoutIdFromObject(model)
+func Save(ctx context.Context, es *elasticsearch.Client, index string, model interface{}, id string) (int64, error) {
 	query := map[string]interface{}{
 		"doc": model,
 	}
 	req := esapi.IndexRequest{
-		Index:      indexName,
+		Index:      index,
 		DocumentID: id,
 		Body:       esutil.NewJSONReader(query),
 		Refresh:    "true",
@@ -177,7 +176,7 @@ func Save(ctx context.Context, es *elasticsearch.Client, indexName string, model
 	return successful, nil
 }
 
-func Patch(ctx context.Context, es *elasticsearch.Client, indexName string, model map[string]interface{}, idName string) (int64, error) {
+func Patch(ctx context.Context, es *elasticsearch.Client, index string, model map[string]interface{}, idName string) (int64, error) {
 	idValue, ok := model[idName]
 	if !ok {
 		return -1, fmt.Errorf("%s must be in map[string]interface{} for patch", idName)
@@ -191,7 +190,7 @@ func Patch(ctx context.Context, es *elasticsearch.Client, indexName string, mode
 		"doc": model,
 	}
 	req := esapi.UpdateRequest{
-		Index:      indexName,
+		Index:      index,
 		DocumentID: id,
 		Body:       esutil.NewJSONReader(query),
 		Refresh:    "true",

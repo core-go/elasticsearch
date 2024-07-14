@@ -17,10 +17,13 @@ type SearchAdapter[T any, F any] struct {
 }
 
 func NewSearchAdapter[T any, F any](client *elasticsearch.Client, index string, buildQuery func(F) map[string]interface{}, getSort func(interface{}) string, opts ...func(*T)) *SearchAdapter[T, F] {
-	return NewSearchAdapterWithIdName[T, F](client, index, buildQuery, getSort, "", opts...)
+	return NewSearchAdapterWithIdName[T, F](client, index, buildQuery, getSort, "", "", opts...)
 }
-func NewSearchAdapterWithIdName[T any, F any](client *elasticsearch.Client, index string, buildQuery func(F) map[string]interface{}, getSort func(interface{}) string, idName string, opts ...func(*T)) *SearchAdapter[T, F] {
-	adapter := NewAdapterWithIdName[T](client, index, idName)
+func NewSearchAdapterWithVersion[T any, F any](client *elasticsearch.Client, index string, buildQuery func(F) map[string]interface{}, getSort func(interface{}) string, versionName string, opts ...func(*T)) *SearchAdapter[T, F] {
+	return NewSearchAdapterWithIdName[T, F](client, index, buildQuery, getSort, "", versionName, opts...)
+}
+func NewSearchAdapterWithIdName[T any, F any](client *elasticsearch.Client, index string, buildQuery func(F) map[string]interface{}, getSort func(interface{}) string, idName string, versionName string, opts ...func(*T)) *SearchAdapter[T, F] {
+	adapter := NewAdapterWithIdName[T](client, index, idName, versionName)
 	var t T
 	modelType := reflect.TypeOf(t)
 	var mp func(*T)

@@ -14,7 +14,7 @@ import (
 
 type PasscodeRepository struct {
 	client        *elasticsearch.Client
-	indexName     string
+	index         string
 	idName        string
 	passcodeName  string
 	expiredAtName string
@@ -45,7 +45,7 @@ func (p *PasscodeRepository) Save(ctx context.Context, id string, passcode strin
 	pass[p.passcodeName] = passcode
 	pass[p.expiredAtName] = expiredAt
 	req := esapi.IndexRequest{
-		Index:      p.indexName,
+		Index:      p.index,
 		DocumentID: id,
 		Body:       esutil.NewJSONReader(pass),
 		Refresh:    "true",
@@ -71,7 +71,7 @@ func (p *PasscodeRepository) Save(ctx context.Context, id string, passcode strin
 
 func (p *PasscodeRepository) Load(ctx context.Context, id string) (string, time.Time, error) {
 	result := make(map[string]interface{})
-	ok, err := FindOne(ctx, p.client, p.indexName, id, &result)
+	ok, err := FindOne(ctx, p.client, p.index, id, &result)
 	if err != nil || !ok {
 		return "", time.Now(), err
 	}
@@ -79,12 +79,12 @@ func (p *PasscodeRepository) Load(ctx context.Context, id string) (string, time.
 }
 
 func (p *PasscodeRepository) Delete(ctx context.Context, id string) (int64, error) {
-	return Delete(ctx, p.client, p.indexName, id)
+	return Delete(ctx, p.client, p.index, id)
 }
 
-func FindOne(ctx context.Context, es *elasticsearch.Client, indexName string, documentID string, result interface{}) (bool, error) {
+func FindOne(ctx context.Context, es *elasticsearch.Client, index string, documentID string, result interface{}) (bool, error) {
 	req := esapi.GetRequest{
-		Index:      indexName,
+		Index:      index,
 		DocumentID: documentID,
 	}
 	res, err := req.Do(ctx, es)

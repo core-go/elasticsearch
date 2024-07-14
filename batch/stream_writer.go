@@ -44,11 +44,8 @@ func NewStreamWriterWithIdName[T any](client *elasticsearch.Client, index string
 			panic(fmt.Sprintf("%s struct requires id field which id name is '%s'", modelType.Name(), idFieldName))
 		}
 	}
-	initModel := reflect.New(modelType).Interface()
-	vo := reflect.Indirect(reflect.ValueOf(initModel))
-	id := vo.Field(idx).Interface()
-	_, ok := id.(string)
-	if !ok {
+	idField := modelType.Field(idx)
+	if idField.Type.String() != "string" {
 		panic(fmt.Sprintf("%s type of %s struct must be string", modelType.Field(idx).Name, modelType.Name()))
 	}
 	var mp func(T)
